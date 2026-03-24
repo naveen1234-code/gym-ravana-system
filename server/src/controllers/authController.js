@@ -5,11 +5,48 @@ const jwt = require("jsonwebtoken");
 // REGISTER
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    
+    const {
+  email,
+  password,
+  membershipNo,
+  date,
+  powerTraining,
+  fatBurning,
+  zumba,
+  yoga,
+  nicPassport,
+  age,
+  fullName,
+  title,
+  birthDay,
+  birthMonth,
+  birthYear,
+  sex,
+  address,
+  homeNumber,
+  mobileNumber,
+  facebookId,
+  instaId,
+  company,
+  profession,
+  weight,
+  height,
+  medicalNotes,
+  payment,
+} = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "Please fill all fields" });
-    }
+    if (!fullName || fullName.trim() === "") {
+  return res.status(400).json({ message: "Full name is required" });
+}
+
+if (!email || email.trim() === "") {
+  return res.status(400).json({ message: "Email is required" });
+}
+
+if (!password || password.trim() === "") {
+  return res.status(400).json({ message: "Password is required" });
+}
 
     const existingUser = await User.findOne({ email });
 
@@ -21,9 +58,10 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
+  name: fullName,
+  fullName,
+  email,
+  password: hashedPassword,
     });
 
     return res.status(201).json({
@@ -36,11 +74,12 @@ const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
-  }
+  console.error("REGISTER ERROR:", error);
+  return res.status(500).json({
+    message: "Server error",
+    error: error.message,
+  });
+}
 };
 
 // LOGIN

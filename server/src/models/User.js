@@ -64,6 +64,131 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    membershipNo: {
+  type: String,
+  default: "",
+},
+
+date: {
+  type: String,
+  default: "",
+},
+
+powerTraining: {
+  type: Boolean,
+  default: false,
+},
+
+fatBurning: {
+  type: Boolean,
+  default: false,
+},
+
+zumba: {
+  type: Boolean,
+  default: false,
+},
+
+yoga: {
+  type: Boolean,
+  default: false,
+},
+
+nicPassport: {
+  type: String,
+  default: "",
+},
+
+age: {
+  type: String,
+  default: "",
+},
+
+fullName: {
+  type: String,
+  default: "",
+},
+
+title: {
+  type: String,
+  default: "",
+},
+
+birthDay: {
+  type: String,
+  default: "",
+},
+
+birthMonth: {
+  type: String,
+  default: "",
+},
+
+birthYear: {
+  type: String,
+  default: "",
+},
+
+sex: {
+  type: String,
+  default: "",
+},
+
+address: {
+  type: String,
+  default: "",
+},
+
+homeNumber: {
+  type: String,
+  default: "",
+},
+
+mobileNumber: {
+  type: String,
+  default: "",
+},
+
+facebookId: {
+  type: String,
+  default: "",
+},
+
+instaId: {
+  type: String,
+  default: "",
+},
+
+company: {
+  type: String,
+  default: "",
+},
+
+profession: {
+  type: String,
+  default: "",
+},
+
+weight: {
+  type: String,
+  default: "",
+},
+
+height: {
+  type: String,
+  default: "",
+},
+
+medicalNotes: {
+  type: String,
+  default: "",
+},
+
+payment: {
+  type: String,
+  default: "",
+},
   },
   { timestamps: true }
 );
