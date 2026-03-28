@@ -5,12 +5,15 @@ const userSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     email: {
       type: String,
       required: true,
       unique: true,
+      trim: true,
+      lowercase: true,
     },
 
     password: {
@@ -33,6 +36,7 @@ const userSchema = new mongoose.Schema(
     membershipPlan: {
       type: String,
       default: "No Plan",
+      trim: true,
     },
 
     membershipStartDate: {
@@ -65,130 +69,215 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    lastDayDeductedAt: {
+      type: Date,
+      default: null,
+    },
+
+    isInsideGym: {
+      type: Boolean,
+      default: false,
+    },
+
+    lastEntryAt: {
+      type: Date,
+      default: null,
+    },
+
+    lastExitAt: {
+      type: Date,
+      default: null,
+    },
+
     membershipNo: {
-  type: String,
-  default: "",
-},
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-date: {
-  type: String,
-  default: "",
-},
+    date: {
+      type: String,
+      default: "",
+    },
 
-powerTraining: {
-  type: Boolean,
-  default: false,
-},
+    powerTraining: {
+      type: Boolean,
+      default: false,
+    },
 
-fatBurning: {
-  type: Boolean,
-  default: false,
-},
+    fatBurning: {
+      type: Boolean,
+      default: false,
+    },
 
-zumba: {
-  type: Boolean,
-  default: false,
-},
+    zumba: {
+      type: Boolean,
+      default: false,
+    },
 
-yoga: {
-  type: Boolean,
-  default: false,
-},
+    yoga: {
+      type: Boolean,
+      default: false,
+    },
 
-nicPassport: {
-  type: String,
-  default: "",
-},
+    nicPassport: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-age: {
-  type: String,
-  default: "",
-},
+    age: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-fullName: {
-  type: String,
-  default: "",
-},
+    fullName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-title: {
-  type: String,
-  default: "",
-},
+    title: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-birthDay: {
-  type: String,
-  default: "",
-},
+    birthDay: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-birthMonth: {
-  type: String,
-  default: "",
-},
+    birthMonth: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-birthYear: {
-  type: String,
-  default: "",
-},
+    birthYear: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-sex: {
-  type: String,
-  default: "",
-},
+    sex: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-address: {
-  type: String,
-  default: "",
-},
+    address: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-homeNumber: {
-  type: String,
-  default: "",
-},
+    homeNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-mobileNumber: {
-  type: String,
-  default: "",
-},
+    mobileNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-facebookId: {
-  type: String,
-  default: "",
-},
+    facebookId: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-instaId: {
-  type: String,
-  default: "",
-},
+    instaId: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-company: {
-  type: String,
-  default: "",
-},
+    company: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-profession: {
-  type: String,
-  default: "",
-},
+    profession: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-weight: {
-  type: String,
-  default: "",
-},
+    weight: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-height: {
-  type: String,
-  default: "",
-},
+    height: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-medicalNotes: {
-  type: String,
-  default: "",
-},
+    medicalNotes: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-payment: {
-  type: String,
-  default: "",
-},
+    payment: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    applicationPdfUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    applicationSubmittedAt: {
+      type: Date,
+      default: null,
+    },
+
+    memberSignature: {
+      type: String,
+      default: "",
+    },
+
+    passwordResetToken: {
+      type: String,
+      default: "",
+    },
+
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+    },
+
+    notificationFlags: {
+      warning7: {
+        type: Boolean,
+        default: false,
+      },
+      warning3: {
+        type: Boolean,
+        default: false,
+      },
+      warning1: {
+        type: Boolean,
+        default: false,
+      },
+      expired: {
+        type: Boolean,
+        default: false,
+      },
+    },
   },
   { timestamps: true }
 );
