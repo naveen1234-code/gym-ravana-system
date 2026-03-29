@@ -15,35 +15,36 @@ const DoorAccessSession = require("../models/DoorAccessSession");
 const registerUser = async (req, res) => {
   try {
     const {
-      email,
-      password,
-      membershipNo,
-      date,
-      powerTraining,
-      fatBurning,
-      zumba,
-      yoga,
-      nicPassport,
-      age,
-      fullName,
-      title,
-      birthDay,
-      birthMonth,
-      birthYear,
-      sex,
-      address,
-      homeNumber,
-      mobileNumber,
-      facebookId,
-      instaId,
-      company,
-      profession,
-      weight,
-      height,
-      medicalNotes,
-      payment,
-      memberSignature,
-    } = req.body;
+  email,
+  password,
+  membershipNo,
+  date,
+  powerTraining,
+  fatBurning,
+  zumba,
+  yoga,
+  nicPassport,
+  age,
+  fullName,
+  title,
+  birthDay,
+  birthMonth,
+  birthYear,
+  sex,
+  address,
+  homeNumber,
+  mobileNumber,
+  facebookId,
+  instaId,
+  company,
+  profession,
+  weight,
+  height,
+  medicalNotes,
+  payment,
+  memberSignature,
+  turnstileToken,
+} = req.body;
 
     if (!fullName || fullName.trim() === "") {
       return res.status(400).json({ message: "Full name is required" });
@@ -60,6 +61,32 @@ const registerUser = async (req, res) => {
     if (!memberSignature || memberSignature.trim() === "") {
       return res.status(400).json({ message: "Member signature is required" });
     }
+
+    if (!turnstileToken || turnstileToken.trim() === "") {
+  return res.status(400).json({ message: "Bot protection is required" });
+}
+
+const turnstileRes = await fetch(
+  "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      secret: process.env.TURNSTILE_SECRET_KEY,
+      response: turnstileToken,
+    }),
+  }
+);
+
+const turnstileData = await turnstileRes.json();
+
+if (!turnstileData.success) {
+  return res.status(400).json({
+    message: "Bot protection verification failed",
+  });
+}
 
     const existingUser = await User.findOne({ email });
 
