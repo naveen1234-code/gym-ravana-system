@@ -346,9 +346,9 @@ const signatureBuffer = getSignatureBuffer(user.memberSignature);
 
 if (signatureBuffer) {
   try {
-    doc.image(signatureBuffer, left + 145, y + 12, {
-  fit: [120, 30],
-  align: "center",
+   doc.image(signatureBuffer, left + 22, y + 18, {
+  fit: [150, 30],
+  align: "left",
   valign: "center",
 });
 
