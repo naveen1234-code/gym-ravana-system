@@ -10,15 +10,20 @@ const safe = (value) => {
 const yesNo = (value) => (value ? "Yes" : "No");
 
 const getSignatureBuffer = (signatureString) => {
-  if (!signatureString) return null;
+  if (!signatureString || typeof signatureString !== "string") return null;
 
   try {
-    if (signatureString.startsWith("data:image/png;base64,")) {
-      const base64Data = signatureString.replace(/^data:image\/png;base64,/, "");
+    const cleaned = signatureString.trim();
+
+    // Handles any data:image/...;base64,... format
+    if (cleaned.startsWith("data:image/")) {
+      const base64Data = cleaned.split(",")[1];
+      if (!base64Data) return null;
       return Buffer.from(base64Data, "base64");
     }
 
-    return Buffer.from(signatureString, "base64");
+    // Handles raw base64 string
+    return Buffer.from(cleaned, "base64");
   } catch (error) {
     return null;
   }
@@ -330,36 +335,45 @@ const generateApplicationPdf = (user) => {
 
       y += 30;
 
-      // SIGNATURE
-      drawSectionTitle(doc, left, y, contentWidth, "Member Signature");
-      y += 18;
+// SIGNATURE
+drawSectionTitle(doc, left, y, contentWidth, "Member Signature");
+y += 18;
 
-      doc.rect(left, y, contentWidth, 55).stroke();
+const signatureBoxHeight = 75;
+doc.rect(left, y, contentWidth, signatureBoxHeight).stroke();
 
-      const signatureBuffer = getSignatureBuffer(user.memberSignature);
+const signatureBuffer = getSignatureBuffer(user.memberSignature);
 
-      if (signatureBuffer) {
-        try {
-          doc.image(signatureBuffer, left + 12, y + 6, {
-            fit: [180, 35],
-            align: "left",
-            valign: "center",
-          });
-        } catch (error) {
-          doc
-            .font("Helvetica")
-            .fontSize(8)
-            .text("Signature could not be loaded", left + 8, y + 20);
-        }
-      } else {
-        doc
-          .font("Helvetica")
-          .fontSize(8)
-          .text("No signature provided", left + 8, y + 20);
-      }
+if (signatureBuffer) {
+  try {
+    doc.image(signatureBuffer, left + 12, y + 8, {
+      fit: [contentWidth - 24, 42],
+      align: "center",
+      valign: "center",
+    });
+  } catch (error) {
+    doc
+      .font("Helvetica")
+      .fontSize(8)
+      .fillColor("red")
+      .text("Signature could not be loaded", left + 12, y + 28, {
+        width: contentWidth - 24,
+        align: "center",
+      })
+      .fillColor("black");
+  }
+} else {
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .text("No signature provided", left + 12, y + 28, {
+      width: contentWidth - 24,
+      align: "center",
+    });
+}
 
-      doc.moveTo(left + 12, y + 44).lineTo(left + 140, y + 44).stroke();
-      doc.font("Helvetica").fontSize(8).text("Member", left + 55, y + 46);
+doc.moveTo(left + 20, y + 58).lineTo(left + 170, y + 58).stroke();
+doc.font("Helvetica").fontSize(8).text("Member Signature", left + 58, y + 61);
 
       doc.end();
 

@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 
 const sendAdminNotificationEmail = async ({
+  to,
   subject,
   html,
   attachments = [],
@@ -28,7 +29,7 @@ const sendAdminNotificationEmail = async ({
 
   await transporter.sendMail({
     from: `"GYM RAVANA" <${smtpEmail}>`,
-    to: adminEmail,
+    to: to || adminEmail,
     subject,
     html,
     attachments,
