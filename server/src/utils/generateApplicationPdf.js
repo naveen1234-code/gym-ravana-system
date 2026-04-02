@@ -346,11 +346,12 @@ const signatureBuffer = getSignatureBuffer(user.memberSignature);
 
 if (signatureBuffer) {
   try {
-    doc.image(signatureBuffer, left + 12, y + 8, {
-      fit: [contentWidth - 24, 42],
-      align: "center",
-      valign: "center",
-    });
+    doc.image(signatureBuffer, left + 145, y + 12, {
+  fit: [120, 30],
+  align: "center",
+  valign: "center",
+});
+
   } catch (error) {
     doc
       .font("Helvetica")
