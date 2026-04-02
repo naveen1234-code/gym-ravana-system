@@ -1,0 +1,17 @@
+[
+  {
+    "id": "section-1",
+    "title": "Training Floor",
+    "description": "Power sessions, strength training, and the main gym environment."
+  },
+  {
+    "id": "section-2",
+    "title": "Classes & Cardio",
+    "description": "Zumba, cardio sessions, class energy, and active movement moments."
+  },
+  {
+    "id": "section-3",
+    "title": "Community & Progress",
+    "description": "Member moments, transformations, achievements, and gym atmosphere."
+  }
+]

@@ -7,6 +7,8 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const accessRoutes = require("./routes/accessRoutes");
+const galleryRoutes = require("./routes/galleryRoutes");
+const galleryAdminRoutes = require("./routes/galleryAdminRoutes");
 
 const app = express();
 
@@ -24,6 +26,8 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/access", accessRoutes);
+app.use("/api/gallery", galleryRoutes);
+app.use("/api/gallery-admin", galleryAdminRoutes);
 
 // HEALTH CHECK
 app.get("/", (req, res) => {
