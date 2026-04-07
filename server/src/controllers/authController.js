@@ -11,6 +11,17 @@ const sendSMS = require("../utils/sendSMS");
 const triggerDoorOpen = require("../utils/triggerDoorOpen");
 const DoorAccessSession = require("../models/DoorAccessSession");
 
+const SRI_LANKA_TZ = "Asia/Colombo";
+
+const getSriLankaDateKey = (date = new Date()) => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: SRI_LANKA_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date); // YYYY-MM-DD
+};
+
 // REGISTER
 const registerUser = async (req, res) => {
   try {
@@ -324,14 +335,71 @@ const updateMembership = async (req, res) => {
     }
 
     const previousStatus = user.membershipStatus;
+    const previousPlan = user.membershipPlan;
+    const previousRemainingDays = user.remainingDays;
 
-    user.membershipStatus = membershipStatus || user.membershipStatus;
-    user.membershipPlan = membershipPlan || user.membershipPlan;
-    user.membershipStartDate = membershipStartDate || user.membershipStartDate;
-    user.membershipEndDate = membershipEndDate || user.membershipEndDate;
-    user.totalDays = totalDays !== undefined ? totalDays : user.totalDays;
-    user.remainingDays =
-      remainingDays !== undefined ? remainingDays : user.remainingDays;
+    user.membershipStatus =
+      membershipStatus !== undefined ? membershipStatus : user.membershipStatus;
+
+    user.membershipPlan =
+      membershipPlan !== undefined ? membershipPlan : user.membershipPlan;
+
+    user.membershipStartDate =
+      membershipStartDate !== undefined
+        ? membershipStartDate
+        : user.membershipStartDate;
+
+    user.membershipEndDate =
+      membershipEndDate !== undefined
+        ? membershipEndDate
+        : user.membershipEndDate;
+
+    if (totalDays !== undefined && totalDays !== null) {
+      if (Number.isNaN(Number(totalDays)) || Number(totalDays) < 0) {
+        return res.status(400).json({ message: "Invalid totalDays value" });
+      }
+      user.totalDays = Number(totalDays);
+    }
+
+    if (remainingDays !== undefined && remainingDays !== null) {
+      if (Number.isNaN(Number(remainingDays)) || Number(remainingDays) < 0) {
+        return res.status(400).json({ message: "Invalid remainingDays value" });
+      }
+      user.remainingDays = Number(remainingDays);
+    }
+
+    const isFreshActivation =
+      previousStatus !== "active" && user.membershipStatus === "active";
+
+    const isPlanOrCycleReset =
+      previousPlan !== user.membershipPlan ||
+      previousRemainingDays !== user.remainingDays;
+
+    if (isFreshActivation || (user.membershipStatus === "active" && isPlanOrCycleReset)) {
+      user.lastDayDeductedAt = null;
+      user.lastCheckIn = null;
+      user.isInsideGym = false;
+      user.lastEntryAt = null;
+      user.lastExitAt = null;
+
+      if (!user.notificationFlags) {
+        user.notificationFlags = {
+          warning7: false,
+          warning3: false,
+          warning1: false,
+          expired: false,
+        };
+      } else {
+        user.notificationFlags.warning7 = false;
+        user.notificationFlags.warning3 = false;
+        user.notificationFlags.warning1 = false;
+        user.notificationFlags.expired = false;
+      }
+    }
+
+    if (user.remainingDays <= 0 && user.membershipStatus === "active") {
+      user.membershipStatus = "expired";
+    }
 
     await user.save();
 
@@ -565,13 +633,13 @@ const checkInMember = async (req, res) => {
       });
     }
 
-    const today = new Date();
-    const todayString = today.toDateString();
+  const today = new Date();
+const todayKey = getSriLankaDateKey(today);
 
-    if (user.lastCheckIn) {
-      const lastCheckInString = new Date(user.lastCheckIn).toDateString();
+if (user.lastCheckIn) {
+  const lastCheckInKey = getSriLankaDateKey(user.lastCheckIn);
 
-      if (lastCheckInString === todayString) {
+  if (lastCheckInKey === todayKey) {
         await AccessLog.create({
           userId: user._id,
           userName: user.fullName || user.name,
@@ -593,9 +661,9 @@ const checkInMember = async (req, res) => {
       }
     }
 
-    const alreadyDeductedToday =
-      user.lastDayDeductedAt &&
-      new Date(user.lastDayDeductedAt).toDateString() === todayString;
+const alreadyDeductedToday =
+  user.lastDayDeductedAt &&
+  getSriLankaDateKey(user.lastDayDeductedAt) === todayKey;
 
     user.attendanceCount = (user.attendanceCount || 0) + 1;
 
