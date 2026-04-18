@@ -1,9 +1,8 @@
 const AccessLog = require("../models/AccessLog");
 const User = require("../models/User");
 const DoorAccessSession = require("../models/DoorAccessSession");
-const createNotification = require("../utils/createNotification");
-const triggerDoorOpen = require("../utils/triggerDoorOpen");
 const DoorCommand = require("../models/DoorCommand");
+const createNotification = require("../utils/createNotification");
 
 // GET ALL ACCESS LOGS
 const getAccessLogs = async (req, res) => {
@@ -58,7 +57,9 @@ const getAccessStats = async (req, res) => {
       createdAt: -1,
     });
 
-    const latestActivity = await AccessLog.find().sort({ createdAt: -1 }).limit(10);
+    const latestActivity = await AccessLog.find()
+      .sort({ createdAt: -1 })
+      .limit(10);
 
     return res.status(200).json({
       totalLogs,
@@ -201,6 +202,16 @@ const deviceDoorClosed = async (req, res) => {
     session.completedAt = new Date();
     await session.save();
 
+    await DoorCommand.findOneAndUpdate(
+      { sessionId: session._id },
+      {
+        $set: {
+          status: "completed",
+          completedAt: new Date(),
+        },
+      }
+    );
+
     await createNotification({
       audience: "admin",
       type: "door_session_completed",
@@ -259,13 +270,22 @@ const manualUnlockEvent = async (req, res) => {
       notes,
     });
 
-    const doorResult = await triggerDoorOpen({
-      sessionId: session._id.toString(),
-      userId: user._id.toString(),
+    await DoorCommand.create({
+      sessionId: session._id,
+      userId: user._id,
       userName: user.fullName || user.name,
-      accessPoint,
       action: "unlock",
+      accessPoint,
+      deviceId: "main-door-controller",
+      status: "pending",
+      expiresAt: new Date(Date.now() + 30000),
     });
+
+    const doorResult = {
+      success: true,
+      mode: "poll",
+      message: "Door unlock command queued successfully",
+    };
 
     await AccessLog.create({
       userId: user._id,
@@ -289,7 +309,6 @@ const manualUnlockEvent = async (req, res) => {
         sessionId: session._id,
         userId: user._id,
         accessPoint,
-        doorOpened: doorResult.success,
         doorMode: doorResult.mode,
       },
     });

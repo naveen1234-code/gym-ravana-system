@@ -8,7 +8,6 @@ const sendAdminNotificationEmail = require("../utils/sendAdminNotificationEmail"
 const GYM_QR = require("../config/gymQr");
 const createNotification = require("../utils/createNotification");
 const sendSMS = require("../utils/sendSMS");
-const triggerDoorOpen = require("../utils/triggerDoorOpen");
 const DoorAccessSession = require("../models/DoorAccessSession");
 const DoorCommand = require("../models/DoorCommand");
 
@@ -20,43 +19,66 @@ const getSriLankaDateKey = (date = new Date()) => {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(date); // YYYY-MM-DD
+  }).format(date);
+};
+
+const queueDoorUnlockCommand = async ({
+  doorSession,
+  user,
+  accessPoint = "main-door",
+}) => {
+  await DoorCommand.create({
+    sessionId: doorSession._id,
+    userId: user._id,
+    userName: user.fullName || user.name,
+    action: "unlock",
+    accessPoint,
+    deviceId: "main-door-controller",
+    status: "pending",
+    expiresAt: new Date(Date.now() + 30000),
+  });
+
+  return {
+    success: true,
+    mode: "poll",
+    message: "Door unlock command queued successfully",
+  };
 };
 
 // REGISTER
 const registerUser = async (req, res) => {
   try {
     const {
-  email,
-  password,
-  membershipNo,
-  date,
-  powerTraining,
-  fatBurning,
-  zumba,
-  yoga,
-  nicPassport,
-  age,
-  fullName,
-  title,
-  birthDay,
-  birthMonth,
-  birthYear,
-  sex,
-  address,
-  homeNumber,
-  mobileNumber,
-  facebookId,
-  instaId,
-  company,
-  profession,
-  weight,
-  height,
-  medicalNotes,
-  payment,
-  memberSignature,
-  turnstileToken,
-} = req.body;
+      email,
+      password,
+      membershipNo,
+      date,
+      powerTraining,
+      fatBurning,
+      zumba,
+      yoga,
+      nicPassport,
+      age,
+      fullName,
+      title,
+      birthDay,
+      birthMonth,
+      birthYear,
+      sex,
+      address,
+      homeNumber,
+      mobileNumber,
+      facebookId,
+      instaId,
+      company,
+      profession,
+      weight,
+      height,
+      medicalNotes,
+      payment,
+      memberSignature,
+      turnstileToken,
+    } = req.body;
 
     if (!fullName || fullName.trim() === "") {
       return res.status(400).json({ message: "Full name is required" });
@@ -75,30 +97,30 @@ const registerUser = async (req, res) => {
     }
 
     if (!turnstileToken || turnstileToken.trim() === "") {
-  return res.status(400).json({ message: "Bot protection is required" });
-}
+      return res.status(400).json({ message: "Bot protection is required" });
+    }
 
-const turnstileRes = await fetch(
-  "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-  {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      secret: process.env.TURNSTILE_SECRET_KEY,
-      response: turnstileToken,
-    }),
-  }
-);
+    const turnstileRes = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          secret: process.env.TURNSTILE_SECRET_KEY,
+          response: turnstileToken,
+        }),
+      }
+    );
 
-const turnstileData = await turnstileRes.json();
+    const turnstileData = await turnstileRes.json();
 
-if (!turnstileData.success) {
-  return res.status(400).json({
-    message: "Bot protection verification failed",
-  });
-}
+    if (!turnstileData.success) {
+      return res.status(400).json({
+        message: "Bot protection verification failed",
+      });
+    }
 
     const existingUser = await User.findOne({ email });
 
@@ -504,7 +526,6 @@ const getAllUsers = async (req, res) => {
 };
 
 // CHECK-IN MEMBER (ENTRY)
-// CHECK-IN MEMBER (ENTRY)
 const checkInMember = async (req, res) => {
   try {
     const { scannedQrValue, accessPoint = "main-door" } = req.body;
@@ -684,22 +705,22 @@ const checkInMember = async (req, res) => {
 
     await user.save();
 
-await DoorCommand.create({
-  sessionId: doorSession._id,
-  userId: user._id,
-  userName: user.fullName || user.name,
-  action: "unlock",
-  accessPoint,
-  deviceId: "main-door-controller",
-  status: "pending",
-  expiresAt: new Date(Date.now() + 30000),
-});
+    const doorSession = await DoorAccessSession.create({
+      userId: user._id,
+      userName: user.fullName || user.name,
+      userEmail: user.email,
+      action: "entry",
+      accessPoint,
+      unlockApproved: true,
+      triggeredBy: "member_qr",
+      notes: "QR entry approved",
+    });
 
-const doorResult = {
-  success: true,
-  mode: "poll",
-  message: "Door unlock command queued successfully",
-};
+    const doorResult = await queueDoorUnlockCommand({
+      doorSession,
+      user,
+      accessPoint,
+    });
 
     await AccessLog.create({
       userId: user._id,
@@ -846,22 +867,22 @@ const checkOutMember = async (req, res) => {
     user.lastExitAt = new Date();
     await user.save();
 
-await DoorCommand.create({
-  sessionId: doorSession._id,
-  userId: user._id,
-  userName: user.fullName || user.name,
-  action: "unlock",
-  accessPoint,
-  deviceId: "main-door-controller",
-  status: "pending",
-  expiresAt: new Date(Date.now() + 30000),
-});
+    const doorSession = await DoorAccessSession.create({
+      userId: user._id,
+      userName: user.fullName || user.name,
+      userEmail: user.email,
+      action: "exit",
+      accessPoint,
+      unlockApproved: true,
+      triggeredBy: "member_qr",
+      notes: "QR exit approved",
+    });
 
-const doorResult = {
-  success: true,
-  mode: "poll",
-  message: "Door unlock command queued successfully",
-}; 
+    const doorResult = await queueDoorUnlockCommand({
+      doorSession,
+      user,
+      accessPoint,
+    });
 
     await AccessLog.create({
       userId: user._id,
