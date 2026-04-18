@@ -503,6 +503,7 @@ const getAllUsers = async (req, res) => {
 };
 
 // CHECK-IN MEMBER (ENTRY)
+// CHECK-IN MEMBER (ENTRY)
 const checkInMember = async (req, res) => {
   try {
     const { scannedQrValue, accessPoint = "main-door" } = req.body;
@@ -633,13 +634,13 @@ const checkInMember = async (req, res) => {
       });
     }
 
-  const today = new Date();
-const todayKey = getSriLankaDateKey(today);
+    const today = new Date();
+    const todayKey = getSriLankaDateKey(today);
 
-if (user.lastCheckIn) {
-  const lastCheckInKey = getSriLankaDateKey(user.lastCheckIn);
+    if (user.lastCheckIn) {
+      const lastCheckInKey = getSriLankaDateKey(user.lastCheckIn);
 
-  if (lastCheckInKey === todayKey) {
+      if (lastCheckInKey === todayKey) {
         await AccessLog.create({
           userId: user._id,
           userName: user.fullName || user.name,
@@ -661,9 +662,9 @@ if (user.lastCheckIn) {
       }
     }
 
-const alreadyDeductedToday =
-  user.lastDayDeductedAt &&
-  getSriLankaDateKey(user.lastDayDeductedAt) === todayKey;
+    const alreadyDeductedToday =
+      user.lastDayDeductedAt &&
+      getSriLankaDateKey(user.lastDayDeductedAt) === todayKey;
 
     user.attendanceCount = (user.attendanceCount || 0) + 1;
 
@@ -682,12 +683,6 @@ const alreadyDeductedToday =
 
     await user.save();
 
-    const doorResult = await triggerDoorOpen({
-      userId: user._id,
-      userName: user.fullName || user.name,
-      accessPoint,
-    });
-
     const doorSession = await DoorAccessSession.create({
       userId: user._id,
       userName: user.fullName || user.name,
@@ -697,6 +692,14 @@ const alreadyDeductedToday =
       unlockApproved: true,
       triggeredBy: "member_qr",
       notes: "QR entry approved",
+    });
+
+    const doorResult = await triggerDoorOpen({
+      sessionId: doorSession._id.toString(),
+      userId: user._id.toString(),
+      userName: user.fullName || user.name,
+      accessPoint,
+      action: "unlock",
     });
 
     await AccessLog.create({
@@ -718,12 +721,12 @@ const alreadyDeductedToday =
       title: "Check-In Successful",
       message: `You entered successfully. Remaining days: ${user.remainingDays}`,
       metadata: {
-    remainingDays: user.remainingDays,
-    attendanceCount: user.attendanceCount,
-    accessPoint,
-    doorOpened: doorResult.success,
-    doorSessionId: doorSession._id,
-  },
+        remainingDays: user.remainingDays,
+        attendanceCount: user.attendanceCount,
+        accessPoint,
+        doorOpened: doorResult.success,
+        doorSessionId: doorSession._id,
+      },
     });
 
     if (user.membershipStatus === "expired") {
@@ -844,12 +847,6 @@ const checkOutMember = async (req, res) => {
     user.lastExitAt = new Date();
     await user.save();
 
-    const doorResult = await triggerDoorOpen({
-      userId: user._id,
-      userName: user.fullName || user.name,
-      accessPoint,
-    });
-
     const doorSession = await DoorAccessSession.create({
       userId: user._id,
       userName: user.fullName || user.name,
@@ -859,6 +856,14 @@ const checkOutMember = async (req, res) => {
       unlockApproved: true,
       triggeredBy: "member_qr",
       notes: "QR exit approved",
+    });
+
+    const doorResult = await triggerDoorOpen({
+      sessionId: doorSession._id.toString(),
+      userId: user._id.toString(),
+      userName: user.fullName || user.name,
+      accessPoint,
+      action: "unlock",
     });
 
     await AccessLog.create({
@@ -880,10 +885,10 @@ const checkOutMember = async (req, res) => {
       title: "Check-Out Successful",
       message: "You checked out successfully.",
       metadata: {
-    accessPoint,
-    doorOpened: doorResult.success,
-    doorSessionId: doorSession._id,
-  },
+        accessPoint,
+        doorOpened: doorResult.success,
+        doorSessionId: doorSession._id,
+      },
     });
 
     return res.status(200).json({

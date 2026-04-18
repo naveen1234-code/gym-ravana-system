@@ -2,6 +2,7 @@ const AccessLog = require("../models/AccessLog");
 const User = require("../models/User");
 const DoorAccessSession = require("../models/DoorAccessSession");
 const createNotification = require("../utils/createNotification");
+const triggerDoorOpen = require("../utils/triggerDoorOpen");
 
 // GET ALL ACCESS LOGS
 const getAccessLogs = async (req, res) => {
@@ -257,6 +258,14 @@ const manualUnlockEvent = async (req, res) => {
       notes,
     });
 
+    const doorResult = await triggerDoorOpen({
+      sessionId: session._id.toString(),
+      userId: user._id.toString(),
+      userName: user.fullName || user.name,
+      accessPoint,
+      action: "unlock",
+    });
+
     await AccessLog.create({
       userId: user._id,
       userName: user.fullName || user.name,
@@ -265,8 +274,8 @@ const manualUnlockEvent = async (req, res) => {
       result: "granted",
       reason: notes,
       accessPoint,
-      doorTriggered: true,
-      doorMode: process.env.DOOR_MODE || "mock",
+      doorTriggered: doorResult.success,
+      doorMode: doorResult.mode,
       scanMethod: "manual-button",
     });
 
@@ -279,12 +288,17 @@ const manualUnlockEvent = async (req, res) => {
         sessionId: session._id,
         userId: user._id,
         accessPoint,
+        doorOpened: doorResult.success,
+        doorMode: doorResult.mode,
       },
     });
 
     return res.status(200).json({
       message: "Manual unlock recorded successfully",
       session,
+      doorOpened: doorResult.success,
+      doorMode: doorResult.mode,
+      doorMessage: doorResult.message,
     });
   } catch (error) {
     return res.status(500).json({

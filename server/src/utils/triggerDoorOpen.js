@@ -1,14 +1,16 @@
 const triggerDoorOpen = async ({
+  sessionId,
   userId,
   userName,
   accessPoint = "main-door",
+  action = "unlock",
 }) => {
   try {
     const mode = process.env.DOOR_MODE || "mock";
 
     if (mode === "mock") {
       console.log(
-        `🚪 MOCK DOOR OPEN -> user: ${userName} (${userId}) | accessPoint: ${accessPoint}`
+        `🚪 MOCK DOOR OPEN -> session: ${sessionId} | user: ${userName} (${userId}) | accessPoint: ${accessPoint}`
       );
 
       return {
@@ -38,7 +40,8 @@ const triggerDoorOpen = async ({
             : {}),
         },
         body: JSON.stringify({
-          action: "unlock",
+          action,
+          sessionId,
           userId,
           userName,
           accessPoint,
