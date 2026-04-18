@@ -49,6 +49,16 @@ const triggerDoorOpen = async ({
         }),
       });
 
+      console.log("ESP32 REQUEST BODY:", {
+  action,
+  sessionId,
+  userId,
+  userName,
+  accessPoint,
+  controllerUrl,
+  secretPresent: !!process.env.ESP32_SHARED_SECRET,
+});
+
       let data = null;
 
       try {
@@ -56,6 +66,12 @@ const triggerDoorOpen = async ({
       } catch {
         data = null;
       }
+
+      console.log("ESP32 RESPONSE:", {
+  ok: response.ok,
+  status: response.status,
+  data,
+});
 
       if (!response.ok) {
         return {
