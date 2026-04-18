@@ -9,6 +9,7 @@ const {
   deviceDoorOpened,
   deviceDoorClosed,
   manualUnlockEvent,
+  devicePollCommand,
 } = require("../controllers/accessController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -24,5 +25,6 @@ router.put("/force-exit", protect, adminOnly, forceExitMember);
 router.post("/device/door-opened", deviceAuthMiddleware, deviceDoorOpened);
 router.post("/device/door-closed", deviceAuthMiddleware, deviceDoorClosed);
 router.post("/device/manual-unlock", protect, manualUnlockEvent);
+router.post("/device/poll", deviceAuthMiddleware, devicePollCommand);
 
 module.exports = router;

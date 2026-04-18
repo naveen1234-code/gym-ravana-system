@@ -10,6 +10,7 @@ const createNotification = require("../utils/createNotification");
 const sendSMS = require("../utils/sendSMS");
 const triggerDoorOpen = require("../utils/triggerDoorOpen");
 const DoorAccessSession = require("../models/DoorAccessSession");
+const DoorCommand = require("../models/DoorCommand");
 
 const SRI_LANKA_TZ = "Asia/Colombo";
 
@@ -683,24 +684,22 @@ const checkInMember = async (req, res) => {
 
     await user.save();
 
-    const doorSession = await DoorAccessSession.create({
-      userId: user._id,
-      userName: user.fullName || user.name,
-      userEmail: user.email,
-      action: "entry",
-      accessPoint,
-      unlockApproved: true,
-      triggeredBy: "member_qr",
-      notes: "QR entry approved",
-    });
+await DoorCommand.create({
+  sessionId: doorSession._id,
+  userId: user._id,
+  userName: user.fullName || user.name,
+  action: "unlock",
+  accessPoint,
+  deviceId: "main-door-controller",
+  status: "pending",
+  expiresAt: new Date(Date.now() + 30000),
+});
 
-    const doorResult = await triggerDoorOpen({
-      sessionId: doorSession._id.toString(),
-      userId: user._id.toString(),
-      userName: user.fullName || user.name,
-      accessPoint,
-      action: "unlock",
-    });
+const doorResult = {
+  success: true,
+  mode: "poll",
+  message: "Door unlock command queued successfully",
+};
 
     await AccessLog.create({
       userId: user._id,
@@ -847,24 +846,22 @@ const checkOutMember = async (req, res) => {
     user.lastExitAt = new Date();
     await user.save();
 
-    const doorSession = await DoorAccessSession.create({
-      userId: user._id,
-      userName: user.fullName || user.name,
-      userEmail: user.email,
-      action: "exit",
-      accessPoint,
-      unlockApproved: true,
-      triggeredBy: "member_qr",
-      notes: "QR exit approved",
-    });
+await DoorCommand.create({
+  sessionId: doorSession._id,
+  userId: user._id,
+  userName: user.fullName || user.name,
+  action: "unlock",
+  accessPoint,
+  deviceId: "main-door-controller",
+  status: "pending",
+  expiresAt: new Date(Date.now() + 30000),
+});
 
-    const doorResult = await triggerDoorOpen({
-      sessionId: doorSession._id.toString(),
-      userId: user._id.toString(),
-      userName: user.fullName || user.name,
-      accessPoint,
-      action: "unlock",
-    });
+const doorResult = {
+  success: true,
+  mode: "poll",
+  message: "Door unlock command queued successfully",
+}; 
 
     await AccessLog.create({
       userId: user._id,

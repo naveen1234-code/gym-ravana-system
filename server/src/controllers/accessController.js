@@ -3,6 +3,7 @@ const User = require("../models/User");
 const DoorAccessSession = require("../models/DoorAccessSession");
 const createNotification = require("../utils/createNotification");
 const triggerDoorOpen = require("../utils/triggerDoorOpen");
+const DoorCommand = require("../models/DoorCommand");
 
 // GET ALL ACCESS LOGS
 const getAccessLogs = async (req, res) => {
@@ -308,6 +309,59 @@ const manualUnlockEvent = async (req, res) => {
   }
 };
 
+const devicePollCommand = async (req, res) => {
+  try {
+    const { deviceId = "main-door-controller" } = req.body || {};
+
+    const now = new Date();
+
+    const command = await DoorCommand.findOneAndUpdate(
+      {
+        deviceId,
+        status: "pending",
+        expiresAt: { $gt: now },
+      },
+      {
+        $set: {
+          status: "claimed",
+          claimedAt: now,
+        },
+      },
+      {
+        new: true,
+        sort: { createdAt: 1 },
+      }
+    );
+
+    if (!command) {
+      return res.status(200).json({
+        success: true,
+        command: null,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      command: {
+        id: command._id,
+        action: command.action,
+        sessionId: command.sessionId,
+        userId: command.userId,
+        userName: command.userName,
+        accessPoint: command.accessPoint,
+        deviceId: command.deviceId,
+        createdAt: command.createdAt,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to poll door command",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAccessLogs,
   getInsideMembers,
@@ -316,4 +370,5 @@ module.exports = {
   deviceDoorClosed,
   manualUnlockEvent,
   forceExitMember,
+  devicePollCommand,
 };
