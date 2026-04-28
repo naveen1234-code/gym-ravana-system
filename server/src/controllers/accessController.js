@@ -267,7 +267,7 @@ const manualUnlockEvent = async (req, res) => {
       action: "manual",
       accessPoint,
       unlockApproved: true,
-      triggeredBy: "admin_remote_app",
+      triggeredBy: "admin_override",
       notes,
     });
 
@@ -322,13 +322,15 @@ const manualUnlockEvent = async (req, res) => {
       doorMode: doorResult.mode,
       doorMessage: doorResult.message,
     });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: "Failed to queue remote door unlock",
-      error: error.message,
-    });
-  }
+} catch (error) {
+  console.error("REMOTE DOOR UNLOCK ERROR:", error);
+
+  return res.status(500).json({
+    success: false,
+    message: "Failed to queue remote door unlock",
+    error: error.message,
+  });
+}
 };
 
 const devicePollCommand = async (req, res) => {
