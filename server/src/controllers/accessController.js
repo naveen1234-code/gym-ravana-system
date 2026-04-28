@@ -3,6 +3,7 @@ const User = require("../models/User");
 const DoorAccessSession = require("../models/DoorAccessSession");
 const DoorCommand = require("../models/DoorCommand");
 const createNotification = require("../utils/createNotification");
+const DoorDeviceStatus = require("../models/DoorDeviceStatus");
 
 // GET ALL ACCESS LOGS
 const getAccessLogs = async (req, res) => {
@@ -386,10 +387,193 @@ const devicePollCommand = async (req, res) => {
   }
 };
 
+const getDoorLiveState = async (req, res) => {
+  try {
+    const deviceId = "main-door-controller";
+    const now = new Date();
+    const offlineAfterMs = 10000;
+
+    const deviceStatus = await DoorDeviceStatus.findOne({ deviceId });
+
+    const latestSession = await DoorAccessSession.findOne({
+      accessPoint: "main-door",
+    }).sort({ createdAt: -1 });
+
+    const latestCommand = await DoorCommand.findOne({
+      deviceId,
+    }).sort({ createdAt: -1 });
+
+    const hasHeartbeat =
+      deviceStatus?.lastHeartbeatAt &&
+      now.getTime() - new Date(deviceStatus.lastHeartbeatAt).getTime() <= offlineAfterMs;
+
+    if (!deviceStatus || !hasHeartbeat) {
+      return res.status(200).json({
+        success: true,
+        state: "HARDWARE_OFFLINE",
+        color: "gray",
+        isUnlocked: false,
+        hardwareOnline: false,
+        message: "Door hardware is offline or not powered.",
+        device: deviceStatus || null,
+        session: latestSession || null,
+        command: latestCommand || null,
+      });
+    }
+
+    let state = deviceStatus.state || "UNKNOWN";
+    let color = "red";
+    let isUnlocked = false;
+    let message = "Door is locked.";
+
+    if (state === "LOCKED") {
+      color = "red";
+      isUnlocked = false;
+      message = "Door is locked.";
+    }
+
+    if (state === "UNLOCKED_WAITING_FOR_FIRST_OPEN") {
+      color = "green";
+      isUnlocked = true;
+      message = "Door is unlocked. Waiting for door to open.";
+    }
+
+    if (state === "DOOR_OPEN") {
+      color = "green";
+      isUnlocked = true;
+      message = "Door is open / unlocked.";
+    }
+
+    if (state === "WAITING_TO_RELOCK") {
+      color = "green";
+      isUnlocked = true;
+      message = "Door is closed and relocking soon.";
+    }
+
+    if (
+      latestCommand &&
+      latestCommand.status === "pending" &&
+      state === "LOCKED"
+    ) {
+      state = "UNLOCK_PENDING";
+      color = "orange";
+      isUnlocked = false;
+      message = "Unlock command is waiting for ESP32.";
+    }
+
+    return res.status(200).json({
+      success: true,
+      state,
+      color,
+      isUnlocked,
+      hardwareOnline: true,
+      message,
+      device: {
+        deviceId: deviceStatus.deviceId,
+        ip: deviceStatus.ip,
+        state: deviceStatus.state,
+        doorClosed: deviceStatus.doorClosed,
+        doorOpen: deviceStatus.doorOpen,
+        sessionId: deviceStatus.sessionId,
+        userName: deviceStatus.userName,
+        accessPoint: deviceStatus.accessPoint,
+        lastHeartbeatAt: deviceStatus.lastHeartbeatAt,
+      },
+      session: latestSession
+        ? {
+            id: latestSession._id,
+            action: latestSession.action,
+            userName: latestSession.userName,
+            accessPoint: latestSession.accessPoint,
+            doorOpened: latestSession.doorOpened,
+            doorClosed: latestSession.doorClosed,
+            completed: latestSession.completed,
+            createdAt: latestSession.createdAt,
+            openedAt: latestSession.openedAt,
+            closedAt: latestSession.closedAt,
+            completedAt: latestSession.completedAt,
+          }
+        : null,
+      command: latestCommand
+        ? {
+            id: latestCommand._id,
+            status: latestCommand.status,
+            action: latestCommand.action,
+            createdAt: latestCommand.createdAt,
+            claimedAt: latestCommand.claimedAt,
+            completedAt: latestCommand.completedAt,
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error("DOOR LIVE STATE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch door live state",
+      error: error.message,
+    });
+  }
+};
+
+const deviceHeartbeat = async (req, res) => {
+  try {
+    const {
+      deviceId = "main-door-controller",
+      ip = "",
+      state = "UNKNOWN",
+      doorClosed = false,
+      doorOpen = false,
+      sessionId = "",
+      userName = "",
+      accessPoint = "main-door",
+    } = req.body || {};
+
+    const now = new Date();
+
+    const status = await DoorDeviceStatus.findOneAndUpdate(
+      { deviceId },
+      {
+        $set: {
+          online: true,
+          ip,
+          state,
+          doorClosed,
+          doorOpen,
+          sessionId,
+          userName,
+          accessPoint,
+          lastHeartbeatAt: now,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+      }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Heartbeat recorded",
+      status,
+    });
+  } catch (error) {
+    console.error("DEVICE HEARTBEAT ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to record device heartbeat",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAccessLogs,
   getInsideMembers,
   getAccessStats,
+  deviceHeartbeat,
+  getDoorLiveState,
   deviceDoorOpened,
   deviceDoorClosed,
   manualUnlockEvent,

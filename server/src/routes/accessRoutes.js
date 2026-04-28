@@ -9,7 +9,10 @@ const {
   deviceDoorOpened,
   deviceDoorClosed,
   manualUnlockEvent,
-  devicePollCommand,
+ devicePollCommand,
+deviceHeartbeat,
+getDoorLiveState, 
+
 } = require("../controllers/accessController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -21,10 +24,12 @@ router.get("/inside", protect, adminOnly, getInsideMembers);
 router.get("/stats", protect, adminOnly, getAccessStats);
 router.put("/force-exit", protect, adminOnly, forceExitMember);
 
+
 // HARDWARE / DOOR EVENTS
 router.post("/device/door-opened", deviceAuthMiddleware, deviceDoorOpened);
 router.post("/device/door-closed", deviceAuthMiddleware, deviceDoorClosed);
 router.post("/device/manual-unlock", protect, adminOnly, manualUnlockEvent);
 router.post("/device/poll", deviceAuthMiddleware, devicePollCommand);
-
+router.post("/device/heartbeat", deviceAuthMiddleware, deviceHeartbeat);
+router.get("/device/live-state", protect, adminOnly, getDoorLiveState);
 module.exports = router;
