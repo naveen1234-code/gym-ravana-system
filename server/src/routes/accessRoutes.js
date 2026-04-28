@@ -24,7 +24,7 @@ router.put("/force-exit", protect, adminOnly, forceExitMember);
 // HARDWARE / DOOR EVENTS
 router.post("/device/door-opened", deviceAuthMiddleware, deviceDoorOpened);
 router.post("/device/door-closed", deviceAuthMiddleware, deviceDoorClosed);
-router.post("/device/manual-unlock", protect, manualUnlockEvent);
+router.post("/device/manual-unlock", protect, adminOnly, manualUnlockEvent);
 router.post("/device/poll", deviceAuthMiddleware, devicePollCommand);
 
 module.exports = router;

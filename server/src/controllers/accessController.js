@@ -240,40 +240,41 @@ const deviceDoorClosed = async (req, res) => {
 const manualUnlockEvent = async (req, res) => {
   try {
     const {
-      userId,
       accessPoint = "main-door",
-      notes = "Manual unlock button used",
-    } = req.body;
+      notes = "Admin remote unlock button used",
+    } = req.body || {};
 
-    if (!userId) {
-      return res.status(400).json({
-        message: "User ID is required",
+    const adminId = req.user?.id;
+
+    if (!adminId) {
+      return res.status(401).json({
+        message: "Admin authentication is required",
       });
     }
 
-    const user = await User.findById(userId);
+    const admin = await User.findById(adminId);
 
-    if (!user) {
+    if (!admin) {
       return res.status(404).json({
-        message: "User not found",
+        message: "Admin user not found",
       });
     }
 
     const session = await DoorAccessSession.create({
-      userId: user._id,
-      userName: user.fullName || user.name,
-      userEmail: user.email,
+      userId: admin._id,
+      userName: admin.fullName || admin.name || "Admin",
+      userEmail: admin.email,
       action: "manual",
       accessPoint,
       unlockApproved: true,
-      triggeredBy: "manual_button",
+      triggeredBy: "admin_remote_app",
       notes,
     });
 
     await DoorCommand.create({
       sessionId: session._id,
-      userId: user._id,
-      userName: user.fullName || user.name,
+      userId: admin._id,
+      userName: admin.fullName || admin.name || "Admin",
       action: "unlock",
       accessPoint,
       deviceId: "main-door-controller",
@@ -288,33 +289,34 @@ const manualUnlockEvent = async (req, res) => {
     };
 
     await AccessLog.create({
-      userId: user._id,
-      userName: user.fullName || user.name,
-      userEmail: user.email,
-      action: user.isInsideGym ? "exit" : "entry",
+      userId: admin._id,
+      userName: admin.fullName || admin.name || "Admin",
+      userEmail: admin.email,
+      action: "entry",
       result: "granted",
       reason: notes,
       accessPoint,
       doorTriggered: doorResult.success,
       doorMode: doorResult.mode,
-      scanMethod: "manual-button",
+      scanMethod: "admin-remote-door-app",
     });
 
     await createNotification({
       audience: "admin",
       type: "manual_unlock_used",
-      title: "Manual Unlock Used",
-      message: `${user.fullName || user.name} triggered manual unlock at ${accessPoint}.`,
+      title: "Remote Door Unlock Used",
+      message: `${admin.fullName || admin.name || "Admin"} remotely unlocked ${accessPoint}.`,
       metadata: {
         sessionId: session._id,
-        userId: user._id,
+        adminId: admin._id,
         accessPoint,
         doorMode: doorResult.mode,
       },
     });
 
     return res.status(200).json({
-      message: "Manual unlock recorded successfully",
+      success: true,
+      message: "Remote door unlock queued successfully",
       session,
       doorOpened: doorResult.success,
       doorMode: doorResult.mode,
@@ -322,7 +324,8 @@ const manualUnlockEvent = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({
-      message: "Failed to record manual unlock",
+      success: false,
+      message: "Failed to queue remote door unlock",
       error: error.message,
     });
   }
