@@ -348,8 +348,9 @@ const devicePollCommand = async (req, res) => {
       },
       {
         $set: {
-          status: "claimed",
+          status: "completed",
           claimedAt: now,
+          completedAt: now,
         },
       },
       {
@@ -379,6 +380,8 @@ const devicePollCommand = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("DEVICE POLL COMMAND ERROR:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to poll door command",

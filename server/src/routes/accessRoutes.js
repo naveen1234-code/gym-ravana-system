@@ -6,13 +6,8 @@ const {
   getInsideMembers,
   getAccessStats,
   forceExitMember,
-  deviceDoorOpened,
-  deviceDoorClosed,
   manualUnlockEvent,
- devicePollCommand,
-deviceHeartbeat,
-getDoorLiveState, 
-
+  devicePollCommand,
 } = require("../controllers/accessController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -24,12 +19,11 @@ router.get("/inside", protect, adminOnly, getInsideMembers);
 router.get("/stats", protect, adminOnly, getAccessStats);
 router.put("/force-exit", protect, adminOnly, forceExitMember);
 
-
-// HARDWARE / DOOR EVENTS
-router.post("/device/door-opened", deviceAuthMiddleware, deviceDoorOpened);
-router.post("/device/door-closed", deviceAuthMiddleware, deviceDoorClosed);
+// FINAL DOOR CONTROL FLOW
+// Admin app queues unlock command
 router.post("/device/manual-unlock", protect, adminOnly, manualUnlockEvent);
+
+// ESP32 polls backend for unlock command
 router.post("/device/poll", deviceAuthMiddleware, devicePollCommand);
-router.post("/device/heartbeat", deviceAuthMiddleware, deviceHeartbeat);
-router.get("/device/live-state", protect, adminOnly, getDoorLiveState);
+
 module.exports = router;

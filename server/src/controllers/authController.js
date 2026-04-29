@@ -199,6 +199,17 @@ const registerUser = async (req, res) => {
       },
     });
 
+  try {
+  if (user.mobileNumber) {
+    await sendSMS({
+      phone: user.mobileNumber,
+      message: `GYM RAVANA: Hi ${user.fullName || user.name}, your registration was submitted successfully. We will review and activate your membership soon.`,
+    });
+  }
+} catch (smsError) {
+  console.error("CUSTOMER REGISTRATION SMS ERROR:", smsError.message);
+}
+
     try {
       if (process.env.ADMIN_MOBILE_NUMBER) {
         await sendSMS({
@@ -439,6 +450,17 @@ const updateMembership = async (req, res) => {
           },
         });
 
+      try {
+  if (user.mobileNumber) {
+    await sendSMS({
+      phone: user.mobileNumber,
+      message: `GYM RAVANA: Hi ${user.fullName || user.name}, your membership is now active. Plan: ${user.membershipPlan || "Selected plan"}. Remaining days: ${user.remainingDays || 0}.`,
+    });
+  }
+} catch (smsError) {
+  console.error("CUSTOMER ACTIVATION SMS ERROR:", smsError.message);
+}
+
         await createNotification({
           userId: user._id,
           audience: "member",
@@ -659,30 +681,7 @@ const checkInMember = async (req, res) => {
     const today = new Date();
     const todayKey = getSriLankaDateKey(today);
 
-    if (user.lastCheckIn) {
-      const lastCheckInKey = getSriLankaDateKey(user.lastCheckIn);
 
-      if (lastCheckInKey === todayKey) {
-        await AccessLog.create({
-          userId: user._id,
-          userName: user.fullName || user.name,
-          userEmail: user.email,
-          action: "entry",
-          result: "denied",
-          reason: "Already checked in today",
-          accessPoint,
-          doorTriggered: false,
-          doorMode: process.env.DOOR_MODE || "mock",
-        });
-
-        return res.status(400).json({
-          success: false,
-          accessGranted: false,
-          doorOpened: false,
-          message: "Already checked in today",
-        });
-      }
-    }
 
     const alreadyDeductedToday =
       user.lastDayDeductedAt &&
