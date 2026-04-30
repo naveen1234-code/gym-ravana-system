@@ -5,6 +5,9 @@ const DoorCommand = require("../models/DoorCommand");
 const createNotification = require("../utils/createNotification");
 const DoorDeviceStatus = require("../models/DoorDeviceStatus");
 
+const DOOR_DEVICE_ID = "main-door-controller";
+const COMMAND_CLAIM_TIMEOUT_MS = 10000; // 10 seconds retry lease
+
 // GET ALL ACCESS LOGS
 const getAccessLogs = async (req, res) => {
   try {
@@ -336,21 +339,50 @@ const manualUnlockEvent = async (req, res) => {
 
 const devicePollCommand = async (req, res) => {
   try {
-    const { deviceId = "main-door-controller" } = req.body || {};
+    const { deviceId = DOOR_DEVICE_ID } = req.body || {};
 
     const now = new Date();
+    const staleClaimBefore = new Date(
+      now.getTime() - COMMAND_CLAIM_TIMEOUT_MS
+    );
 
-    const command = await DoorCommand.findOneAndUpdate(
+    // Clean old commands so expired pending/claimed commands do not stay active forever.
+    await DoorCommand.updateMany(
       {
         deviceId,
-        status: "pending",
-        expiresAt: { $gt: now },
+        status: { $in: ["pending", "claimed"] },
+        expiresAt: { $lte: now },
       },
       {
         $set: {
-          status: "completed",
+          status: "expired",
+        },
+      }
+    );
+
+    // Safe command lease:
+    // 1. First priority: pending command.
+    // 2. Retry claimed command only if ESP32 did not ACK within lease time.
+    const command = await DoorCommand.findOneAndUpdate(
+      {
+        deviceId,
+        expiresAt: { $gt: now },
+        $or: [
+          { status: "pending" },
+          {
+            status: "claimed",
+            claimedAt: { $lte: staleClaimBefore },
+          },
+          {
+            status: "claimed",
+            claimedAt: null,
+          },
+        ],
+      },
+      {
+        $set: {
+          status: "claimed",
           claimedAt: now,
-          completedAt: now,
         },
       },
       {
@@ -377,6 +409,8 @@ const devicePollCommand = async (req, res) => {
         accessPoint: command.accessPoint,
         deviceId: command.deviceId,
         createdAt: command.createdAt,
+        claimedAt: command.claimedAt,
+        expiresAt: command.expiresAt,
       },
     });
   } catch (error) {
@@ -385,6 +419,85 @@ const devicePollCommand = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to poll door command",
+      error: error.message,
+    });
+  }
+};
+
+const deviceAckCommand = async (req, res) => {
+  try {
+    const {
+      commandId,
+      sessionId,
+      deviceId = DOOR_DEVICE_ID,
+    } = req.body || {};
+
+    if (!commandId) {
+      return res.status(400).json({
+        success: false,
+        message: "Command ID is required",
+      });
+    }
+
+    const command = await DoorCommand.findOne({
+      _id: commandId,
+      deviceId,
+    });
+
+    if (!command) {
+      return res.status(404).json({
+        success: false,
+        message: "Door command not found",
+      });
+    }
+
+    if (sessionId && String(command.sessionId) !== String(sessionId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Session ID does not match command",
+      });
+    }
+
+    // Idempotent ACK:
+    // If ESP32 already completed this command and sends ACK again, do not fail.
+    if (command.status === "completed") {
+      return res.status(200).json({
+        success: true,
+        message: "Door command was already completed",
+        command,
+      });
+    }
+
+    if (!["pending", "claimed"].includes(command.status)) {
+      return res.status(409).json({
+        success: false,
+        message: `Door command cannot be acknowledged because it is ${command.status}`,
+        command,
+      });
+    }
+
+    const now = new Date();
+
+    command.status = "completed";
+    command.completedAt = now;
+
+    if (!command.claimedAt) {
+      command.claimedAt = now;
+    }
+
+    await command.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Door command acknowledged successfully",
+      command,
+    });
+  } catch (error) {
+    console.error("DEVICE ACK COMMAND ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to acknowledge door command",
       error: error.message,
     });
   }
@@ -582,4 +695,5 @@ module.exports = {
   manualUnlockEvent,
   forceExitMember,
   devicePollCommand,
+  deviceAckCommand,
 };

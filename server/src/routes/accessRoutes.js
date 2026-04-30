@@ -8,6 +8,7 @@ const {
   forceExitMember,
   manualUnlockEvent,
   devicePollCommand,
+  deviceAckCommand,
 } = require("../controllers/accessController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -25,5 +26,5 @@ router.post("/device/manual-unlock", protect, adminOnly, manualUnlockEvent);
 
 // ESP32 polls backend for unlock command
 router.post("/device/poll", deviceAuthMiddleware, devicePollCommand);
-
+router.post("/device/ack", deviceAuthMiddleware, deviceAckCommand);
 module.exports = router;
