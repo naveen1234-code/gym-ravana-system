@@ -1,6 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
+const cloudinary = require("../config/cloudinary");
+
 
 const safe = (value) => {
   if (value === null || value === undefined) return "";
@@ -379,11 +381,23 @@ doc.font("Helvetica").fontSize(8).text("Member Signature", left + 58, y + 61);
       doc.end();
 
       stream.on("finish", () => {
-        resolve({
-          fileName,
-          filePath,
-          publicUrl: `/uploads/applications/${fileName}`,
-        });
+        cloudinary.uploader
+  .upload(filePath, {
+    resource_type: "raw",
+    folder: "gym-ravana/applications",
+    public_id: fileName.replace(".pdf", ""),
+    overwrite: true,
+  })
+  .then((uploadResult) => {
+    resolve({
+      fileName,
+      filePath,
+      publicUrl: uploadResult.secure_url,
+    });
+  })
+  .catch((uploadError) => {
+    reject(uploadError);
+  });
       });
 
       stream.on("error", (err) => reject(err));
