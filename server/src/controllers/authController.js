@@ -1228,6 +1228,89 @@ const sendBulkMemberSMS = async (req, res) => {
   }
 };
 
+const retryFailedMemberSMS = async (req, res) => {
+  try {
+    const { message, confirm, memberIds } = req.body;
+
+    if (!confirm) {
+      return res.status(400).json({
+        success: false,
+        message: "Confirmation is required before retrying failed SMS",
+      });
+    }
+
+    if (!message || message.trim().length < 5) {
+      return res.status(400).json({
+        success: false,
+        message: "SMS message must be at least 5 characters",
+      });
+    }
+
+    if (!Array.isArray(memberIds) || memberIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No failed members selected for retry",
+      });
+    }
+
+    const members = await User.find({
+      role: "member",
+      _id: { $in: memberIds },
+      mobileNumber: { $exists: true, $nin: ["", null] },
+    }).select("fullName name email mobileNumber");
+
+    let sent = 0;
+    let failed = 0;
+    const failedMembers = [];
+
+    for (const member of members) {
+      try {
+        const ok = await sendSMS({
+          phone: member.mobileNumber,
+          message: `GYM RAVANA: ${message.trim()}`,
+        });
+
+        if (ok) {
+          sent += 1;
+        } else {
+          failed += 1;
+          failedMembers.push({
+            id: member._id,
+            name: member.fullName || member.name || "Unknown",
+            phone: member.mobileNumber,
+            reason: "SMS provider returned false",
+          });
+        }
+      } catch (smsError) {
+        failed += 1;
+        failedMembers.push({
+          id: member._id,
+          name: member.fullName || member.name || "Unknown",
+          phone: member.mobileNumber,
+          reason: smsError.message,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Failed-member SMS retry completed",
+      totalRecipients: members.length,
+      sent,
+      failed,
+      failedMembers,
+    });
+  } catch (error) {
+    console.error("RETRY FAILED MEMBER SMS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retry failed member SMS",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1243,4 +1326,5 @@ module.exports = {
   sendTestSMS,
   regenerateApplicationPdfs,
   sendBulkMemberSMS,
+  retryFailedMemberSMS,
 };

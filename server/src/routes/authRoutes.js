@@ -16,6 +16,7 @@ const {
   sendTestSMS,
   regenerateApplicationPdfs,
   sendBulkMemberSMS,
+  retryFailedMemberSMS,
 } = require("../controllers/authController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -34,7 +35,7 @@ router.put("/make-admin", protect, adminOnly, makeAdmin);
 router.put("/membership", protect, adminOnly, updateMembership);
 router.post("/regenerate-application-pdfs", protect, adminOnly, regenerateApplicationPdfs);
 router.post("/bulk-member-sms", protect, adminOnly, sendBulkMemberSMS);
-
+router.post("/retry-failed-member-sms", protect, adminOnly, retryFailedMemberSMS);
 // MEMBER ACCESS
 router.post("/check-in", protect, checkInMember);
 router.post("/check-out", protect, checkOutMember);

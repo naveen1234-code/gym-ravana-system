@@ -1,5 +1,45 @@
 const axios = require("axios");
 
+const normalizeSriLankanPhone = (phone) => {
+  if (!phone) return null;
+
+  const raw = String(phone).trim();
+
+  // Supports cases like: 0774498800/0716209087
+  const candidates = raw
+    .split(/[\/,;|]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  for (const candidate of candidates) {
+    let cleaned = candidate.replace(/\s+/g, "");
+
+    if (cleaned.startsWith("+")) {
+      cleaned = cleaned.substring(1);
+    }
+
+    // Remove non-digits after handling +
+    cleaned = cleaned.replace(/\D/g, "");
+
+    // 0771234567 -> 94771234567
+    if (cleaned.startsWith("0") && cleaned.length === 10) {
+      cleaned = `94${cleaned.substring(1)}`;
+    }
+
+    // 771234567 -> 94771234567
+    if (cleaned.startsWith("7") && cleaned.length === 9) {
+      cleaned = `94${cleaned}`;
+    }
+
+    // Notify.lk expected format: 9471XXXXXXX
+    if (/^94\d{9}$/.test(cleaned)) {
+      return cleaned;
+    }
+  }
+
+  return null;
+};
+
 const sendSMS = async ({ phone, message }) => {
   try {
     if (!phone || !message) {
@@ -7,21 +47,13 @@ const sendSMS = async ({ phone, message }) => {
       return false;
     }
 
-    // ✅ Clean phone number
-    let cleanedPhone = String(phone).trim().replace(/\s+/g, "");
+    const cleanedPhone = normalizeSriLankanPhone(phone);
 
-    // Convert Sri Lankan local format to international
-    // Example: 0771234567 -> 94771234567
-    if (cleanedPhone.startsWith("0")) {
-      cleanedPhone = "94" + cleanedPhone.substring(1);
+    if (!cleanedPhone) {
+      console.error("SMS ERROR: Invalid phone number:", phone);
+      return false;
     }
 
-    // Remove +
-    if (cleanedPhone.startsWith("+")) {
-      cleanedPhone = cleanedPhone.substring(1);
-    }
-
-    // 🚫 If SMS provider not configured, don't crash system
     if (
       !process.env.SMS_API_URL ||
       !process.env.SMS_USER_ID ||
@@ -33,32 +65,38 @@ const sendSMS = async ({ phone, message }) => {
       return false;
     }
 
-    // 🔥 REAL SMS REQUEST
-    const response = await axios.post(
-      process.env.SMS_API_URL,
-      {
+    const response = await axios.get(process.env.SMS_API_URL, {
+      params: {
         user_id: process.env.SMS_USER_ID,
         api_key: process.env.SMS_API_KEY,
         sender_id: process.env.SMS_SENDER_ID,
         to: cleanedPhone,
         message,
       },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+      timeout: 20000,
+    });
 
-    console.log(`✅ SMS SENT to ${cleanedPhone}`);
     console.log("SMS Provider Response:", response.data);
 
+    const providerStatus = String(response.data?.status || "").toLowerCase();
+    const providerData = String(response.data?.data || "").toLowerCase();
+
+    const accepted =
+      providerStatus === "success" &&
+      providerData.includes("sent");
+
+    if (!accepted) {
+      console.error("SMS NOT ACCEPTED BY PROVIDER:", {
+        phone: cleanedPhone,
+        response: response.data,
+      });
+      return false;
+    }
+
+    console.log(`✅ SMS ACCEPTED BY PROVIDER to ${cleanedPhone}`);
     return true;
   } catch (error) {
-    console.error(
-      "SMS ERROR:",
-      error.response?.data || error.message
-    );
+    console.error("SMS ERROR:", error.response?.data || error.message);
     return false;
   }
 };
