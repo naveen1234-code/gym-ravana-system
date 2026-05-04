@@ -10,6 +10,8 @@ const createNotification = require("../utils/createNotification");
 const sendSMS = require("../utils/sendSMS");
 const DoorAccessSession = require("../models/DoorAccessSession");
 const DoorCommand = require("../models/DoorCommand");
+const generateApplicationPdf = require("../utils/generateApplicationPdf");
+
 
 const SRI_LANKA_TZ = "Asia/Colombo";
 
@@ -1080,6 +1082,71 @@ const sendTestSMS = async (req, res) => {
   }
 };
 
+const regenerateApplicationPdfs = async (req, res) => {
+  try {
+    const force = req.body?.force === true;
+
+    const query = force
+      ? { role: "member" }
+      : {
+          role: "member",
+          $or: [
+            { applicationPdfUrl: { $exists: false } },
+            { applicationPdfUrl: null },
+            { applicationPdfUrl: "" },
+            { applicationPdfUrl: /^\/uploads\/applications\// },
+            { applicationPdfUrl: /^https:\/\/gym-ravana-backend\.onrender\.com\/uploads\/applications\// },
+          ],
+        };
+
+    const users = await User.find(query);
+
+    let regenerated = 0;
+    let failed = 0;
+    const failedUsers = [];
+
+    for (const user of users) {
+      try {
+        const pdfResult = await generateApplicationPdf(user);
+
+        user.applicationPdfUrl = pdfResult.publicUrl;
+        user.applicationSubmittedAt = user.applicationSubmittedAt || new Date();
+
+        await user.save();
+
+        regenerated += 1;
+      } catch (error) {
+        failed += 1;
+
+        failedUsers.push({
+          id: user._id,
+          name: user.fullName || user.name || "Unknown",
+          email: user.email,
+          error: error.message,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Application PDFs regeneration completed",
+      mode: force ? "force_all_members" : "missing_or_local_only",
+      totalFound: users.length,
+      regenerated,
+      failed,
+      failedUsers,
+    });
+  } catch (error) {
+    console.error("REGENERATE APPLICATION PDFS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to regenerate application PDFs",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1093,4 +1160,5 @@ module.exports = {
   checkOutMember,
   sendApplicationEmailTest,
   sendTestSMS,
+  regenerateApplicationPdfs,
 };
