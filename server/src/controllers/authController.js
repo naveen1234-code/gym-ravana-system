@@ -1146,6 +1146,88 @@ const regenerateApplicationPdfs = async (req, res) => {
   }
 };
 
+const sendBulkMemberSMS = async (req, res) => {
+  try {
+    const { message, confirm } = req.body;
+
+    if (!confirm) {
+      return res.status(400).json({
+        success: false,
+        message: "Confirmation is required before sending bulk SMS",
+      });
+    }
+
+    if (!message || message.trim().length < 5) {
+      return res.status(400).json({
+        success: false,
+        message: "SMS message must be at least 5 characters",
+      });
+    }
+
+    if (message.length > 300) {
+      return res.status(400).json({
+        success: false,
+        message: "SMS message is too long. Keep it under 300 characters.",
+      });
+    }
+
+    const members = await User.find({
+      role: "member",
+      mobileNumber: { $exists: true, $nin: ["", null] },
+    }).select("fullName name email mobileNumber");
+
+    let sent = 0;
+    let failed = 0;
+    const failedMembers = [];
+
+    for (const member of members) {
+      try {
+        const ok = await sendSMS({
+          phone: member.mobileNumber,
+          message: `GYM RAVANA: ${message.trim()}`,
+        });
+
+        if (ok) {
+          sent += 1;
+        } else {
+          failed += 1;
+          failedMembers.push({
+            id: member._id,
+            name: member.fullName || member.name || "Unknown",
+            phone: member.mobileNumber,
+            reason: "SMS provider returned false",
+          });
+        }
+      } catch (smsError) {
+        failed += 1;
+        failedMembers.push({
+          id: member._id,
+          name: member.fullName || member.name || "Unknown",
+          phone: member.mobileNumber,
+          reason: smsError.message,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Bulk SMS sending completed",
+      totalRecipients: members.length,
+      sent,
+      failed,
+      failedMembers,
+    });
+  } catch (error) {
+    console.error("BULK MEMBER SMS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send bulk SMS",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1160,4 +1242,5 @@ module.exports = {
   sendApplicationEmailTest,
   sendTestSMS,
   regenerateApplicationPdfs,
+  sendBulkMemberSMS,
 };

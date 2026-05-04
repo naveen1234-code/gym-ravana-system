@@ -15,6 +15,7 @@ const {
   sendApplicationEmailTest,
   sendTestSMS,
   regenerateApplicationPdfs,
+  sendBulkMemberSMS,
 } = require("../controllers/authController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -32,6 +33,7 @@ router.get("/users", protect, adminOnly, getAllUsers);
 router.put("/make-admin", protect, adminOnly, makeAdmin);
 router.put("/membership", protect, adminOnly, updateMembership);
 router.post("/regenerate-application-pdfs", protect, adminOnly, regenerateApplicationPdfs);
+router.post("/bulk-member-sms", protect, adminOnly, sendBulkMemberSMS);
 
 // MEMBER ACCESS
 router.post("/check-in", protect, checkInMember);
