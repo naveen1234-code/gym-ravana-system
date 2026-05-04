@@ -10,7 +10,6 @@ const createNotification = require("../utils/createNotification");
 const sendSMS = require("../utils/sendSMS");
 const DoorAccessSession = require("../models/DoorAccessSession");
 const DoorCommand = require("../models/DoorCommand");
-const generateApplicationPdf = require("../utils/generateApplicationPdf");
 
 
 const SRI_LANKA_TZ = "Asia/Colombo";
