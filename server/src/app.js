@@ -34,4 +34,4 @@ app.get("/", (req, res) => {
   res.send("GYM RAVANA backend is running ✅");
 });
 
-module.exports = app; s
+module.exports = app;
