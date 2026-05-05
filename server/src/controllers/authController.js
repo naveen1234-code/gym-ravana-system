@@ -23,12 +23,29 @@ const getSriLankaDateKey = (date = new Date()) => {
   }).format(date);
 };
 
+const COMMAND_EXPIRE_MS = 30000;
+
 const queueDoorUnlockCommand = async ({
   doorSession,
   user,
   accessPoint = "main-door",
 }) => {
-  await DoorCommand.create({
+  const activeCommand = await DoorCommand.findOne({
+    deviceId: "main-door-controller",
+    status: { $in: ["pending", "claimed"] },
+    expiresAt: { $gt: new Date() },
+  }).sort({ createdAt: 1 });
+
+  if (activeCommand) {
+    const error = new Error(
+      "Door is busy. Please scan again after the door closes."
+    );
+    error.statusCode = 409;
+    error.commandId = activeCommand._id;
+    throw error;
+  }
+
+  const command = await DoorCommand.create({
     sessionId: doorSession._id,
     userId: user._id,
     userName: user.fullName || user.name,
@@ -36,13 +53,16 @@ const queueDoorUnlockCommand = async ({
     accessPoint,
     deviceId: "main-door-controller",
     status: "pending",
-    expiresAt: new Date(Date.now() + 30000),
+    expiresAt: new Date(Date.now() + COMMAND_EXPIRE_MS),
   });
 
   return {
     success: true,
     mode: "poll",
-    message: "Door unlock command queued successfully",
+    status: "pending",
+    commandId: command._id,
+    sessionId: doorSession._id,
+    message: "Unlock request sent. Waiting for door controller confirmation.",
   };
 };
 
@@ -549,6 +569,7 @@ const getAllUsers = async (req, res) => {
 };
 
 // CHECK-IN MEMBER (ENTRY)
+// CHECK-IN MEMBER (ENTRY)
 const checkInMember = async (req, res) => {
   try {
     const { scannedQrValue, accessPoint = "main-door" } = req.body;
@@ -573,67 +594,47 @@ const checkInMember = async (req, res) => {
       });
     }
 
-    if (scannedQrValue !== GYM_QR.ENTRY) {
+    const createDeniedEntryLog = async (reason, message) => {
       await AccessLog.create({
         userId: user._id,
         userName: user.fullName || user.name,
         userEmail: user.email,
         action: "entry",
         result: "denied",
-        reason: "Invalid ENTRY QR code",
+        reason,
         accessPoint,
         doorTriggered: false,
-        doorMode: process.env.DOOR_MODE || "mock",
+        doorMode: "poll",
+        scanMethod: "qr",
       });
 
       return res.status(400).json({
         success: false,
         accessGranted: false,
         doorOpened: false,
-        message: "Invalid entry QR code",
+        message,
       });
+    };
+
+    if (scannedQrValue !== GYM_QR.ENTRY) {
+      return createDeniedEntryLog(
+        "Invalid ENTRY QR code",
+        "Invalid entry QR code"
+      );
     }
 
     if (user.isInsideGym) {
-      await AccessLog.create({
-        userId: user._id,
-        userName: user.fullName || user.name,
-        userEmail: user.email,
-        action: "entry",
-        result: "denied",
-        reason: "User is already inside",
-        accessPoint,
-        doorTriggered: false,
-        doorMode: process.env.DOOR_MODE || "mock",
-      });
-
-      return res.status(400).json({
-        success: false,
-        accessGranted: false,
-        doorOpened: false,
-        message: "You are already inside the gym",
-      });
+      return createDeniedEntryLog(
+        "User is already inside",
+        "You are already inside the gym"
+      );
     }
 
     if (user.membershipStatus !== "active") {
-      await AccessLog.create({
-        userId: user._id,
-        userName: user.fullName || user.name,
-        userEmail: user.email,
-        action: "entry",
-        result: "denied",
-        reason: "Membership is not active",
-        accessPoint,
-        doorTriggered: false,
-        doorMode: process.env.DOOR_MODE || "mock",
-      });
-
-      return res.status(400).json({
-        success: false,
-        accessGranted: false,
-        doorOpened: false,
-        message: "Membership is not active",
-      });
+      return createDeniedEntryLog(
+        "Membership is not active",
+        "Membership is not active"
+      );
     }
 
     if (user.remainingDays <= 0) {
@@ -659,51 +660,11 @@ const checkInMember = async (req, res) => {
         metadata: {},
       });
 
-      await AccessLog.create({
-        userId: user._id,
-        userName: user.fullName || user.name,
-        userEmail: user.email,
-        action: "entry",
-        result: "denied",
-        reason: "No remaining days left",
-        accessPoint,
-        doorTriggered: false,
-        doorMode: process.env.DOOR_MODE || "mock",
-      });
-
-      return res.status(400).json({
-        success: false,
-        accessGranted: false,
-        doorOpened: false,
-        message: "No remaining days left",
-      });
+      return createDeniedEntryLog(
+        "No remaining days left",
+        "No remaining days left"
+      );
     }
-
-    const today = new Date();
-    const todayKey = getSriLankaDateKey(today);
-
-
-
-    const alreadyDeductedToday =
-      user.lastDayDeductedAt &&
-      getSriLankaDateKey(user.lastDayDeductedAt) === todayKey;
-
-    user.attendanceCount = (user.attendanceCount || 0) + 1;
-
-    if (!alreadyDeductedToday) {
-      user.remainingDays = Math.max((user.remainingDays || 0) - 1, 0);
-      user.lastDayDeductedAt = today;
-    }
-
-    user.lastCheckIn = today;
-    user.lastEntryAt = today;
-    user.isInsideGym = true;
-
-    if (user.remainingDays <= 0) {
-      user.membershipStatus = "expired";
-    }
-
-    await user.save();
 
     const doorSession = await DoorAccessSession.create({
       userId: user._id,
@@ -713,74 +674,65 @@ const checkInMember = async (req, res) => {
       accessPoint,
       unlockApproved: true,
       triggeredBy: "member_qr",
-      notes: "QR entry approved",
+      notes: "QR entry approved. Waiting for ESP32 unlock confirmation.",
     });
 
-    const doorResult = await queueDoorUnlockCommand({
-      doorSession,
-      user,
-      accessPoint,
-    });
+    let doorResult;
 
-    await AccessLog.create({
-      userId: user._id,
-      userName: user.fullName || user.name,
-      userEmail: user.email,
-      action: "entry",
-      result: "granted",
-      reason: "Entry granted",
-      accessPoint,
-      doorTriggered: doorResult.success,
-      doorMode: doorResult.mode,
-    });
-
-    await createNotification({
-      userId: user._id,
-      audience: "member",
-      type: "check_in_success",
-      title: "Check-In Successful",
-      message: `You entered successfully. Remaining days: ${user.remainingDays}`,
-      metadata: {
-        remainingDays: user.remainingDays,
-        attendanceCount: user.attendanceCount,
+    try {
+      doorResult = await queueDoorUnlockCommand({
+        doorSession,
+        user,
         accessPoint,
-        doorOpened: doorResult.success,
-        doorSessionId: doorSession._id,
-      },
-    });
-
-    if (user.membershipStatus === "expired") {
-      await createNotification({
-        audience: "admin",
-        type: "membership_expired",
-        title: "Membership Expired",
-        message: `${user.fullName || user.name} membership expired after entry.`,
-        metadata: {
-          userId: user._id,
-        },
+      });
+    } catch (doorError) {
+      await AccessLog.create({
+        userId: user._id,
+        userName: user.fullName || user.name,
+        userEmail: user.email,
+        action: "entry",
+        result: "denied",
+        reason: doorError.message || "Door command could not be queued",
+        accessPoint,
+        doorTriggered: false,
+        doorMode: "poll",
+        scanMethod: "qr",
+        sessionId: doorSession._id,
+        commandId: doorError.commandId || null,
+        doorCommandStatus: "busy",
+        deviceMessage: doorError.message || "",
       });
 
-      await createNotification({
-        userId: user._id,
-        audience: "member",
-        type: "membership_expired",
-        title: "Membership Expired",
-        message: "Your membership has expired after today’s entry.",
-        metadata: {},
+      doorSession.completed = true;
+      doorSession.completedAt = new Date();
+      doorSession.notes = `${doorSession.notes || ""} | Door busy / queue failed.`;
+      await doorSession.save();
+
+      return res.status(doorError.statusCode || 500).json({
+        success: false,
+        accessGranted: false,
+        doorOpened: false,
+        status: "busy",
+        message:
+          doorError.message ||
+          "Door is busy. Please scan again after the door closes.",
+        commandId: doorError.commandId || null,
+        doorSessionId: doorSession._id,
       });
     }
 
     return res.status(200).json({
       success: true,
       accessGranted: true,
-      doorOpened: doorResult.success,
+      doorOpened: false,
+      status: "pending",
       doorMode: doorResult.mode,
       doorMessage: doorResult.message,
+      commandId: doorResult.commandId,
+      sessionId: doorSession._id,
       doorSessionId: doorSession._id,
       action: "entry",
-      isInside: user.isInsideGym,
-      isInsideGym: user.isInsideGym,
-      message: "Entry successful ✅",
+      message: "Entry approved. Unlocking door...",
       user,
     });
   } catch (error) {
@@ -821,51 +773,41 @@ const checkOutMember = async (req, res) => {
       });
     }
 
-    if (scannedQrValue !== GYM_QR.EXIT) {
+    const createDeniedExitLog = async (reason, message) => {
       await AccessLog.create({
         userId: user._id,
         userName: user.fullName || user.name,
         userEmail: user.email,
         action: "exit",
         result: "denied",
-        reason: "Invalid EXIT QR code",
+        reason,
         accessPoint,
         doorTriggered: false,
-        doorMode: process.env.DOOR_MODE || "mock",
+        doorMode: "poll",
+        scanMethod: "qr",
       });
 
       return res.status(400).json({
         success: false,
         accessGranted: false,
         doorOpened: false,
-        message: "Invalid exit QR code",
+        message,
       });
+    };
+
+    if (scannedQrValue !== GYM_QR.EXIT) {
+      return createDeniedExitLog(
+        "Invalid EXIT QR code",
+        "Invalid exit QR code"
+      );
     }
 
     if (!user.isInsideGym) {
-      await AccessLog.create({
-        userId: user._id,
-        userName: user.fullName || user.name,
-        userEmail: user.email,
-        action: "exit",
-        result: "denied",
-        reason: "User is not currently inside",
-        accessPoint,
-        doorTriggered: false,
-        doorMode: process.env.DOOR_MODE || "mock",
-      });
-
-      return res.status(400).json({
-        success: false,
-        accessGranted: false,
-        doorOpened: false,
-        message: "You are not currently inside the gym",
-      });
+      return createDeniedExitLog(
+        "User is not currently inside",
+        "You are not currently inside the gym"
+      );
     }
-
-    user.isInsideGym = false;
-    user.lastExitAt = new Date();
-    await user.save();
 
     const doorSession = await DoorAccessSession.create({
       userId: user._id,
@@ -875,51 +817,65 @@ const checkOutMember = async (req, res) => {
       accessPoint,
       unlockApproved: true,
       triggeredBy: "member_qr",
-      notes: "QR exit approved",
+      notes: "QR exit approved. Waiting for ESP32 unlock confirmation.",
     });
 
-    const doorResult = await queueDoorUnlockCommand({
-      doorSession,
-      user,
-      accessPoint,
-    });
+    let doorResult;
 
-    await AccessLog.create({
-      userId: user._id,
-      userName: user.fullName || user.name,
-      userEmail: user.email,
-      action: "exit",
-      result: "granted",
-      reason: "Exit granted",
-      accessPoint,
-      doorTriggered: doorResult.success,
-      doorMode: doorResult.mode,
-    });
-
-    await createNotification({
-      userId: user._id,
-      audience: "member",
-      type: "check_out_success",
-      title: "Check-Out Successful",
-      message: "You checked out successfully.",
-      metadata: {
+    try {
+      doorResult = await queueDoorUnlockCommand({
+        doorSession,
+        user,
         accessPoint,
-        doorOpened: doorResult.success,
+      });
+    } catch (doorError) {
+      await AccessLog.create({
+        userId: user._id,
+        userName: user.fullName || user.name,
+        userEmail: user.email,
+        action: "exit",
+        result: "denied",
+        reason: doorError.message || "Door command could not be queued",
+        accessPoint,
+        doorTriggered: false,
+        doorMode: "poll",
+        scanMethod: "qr",
+        sessionId: doorSession._id,
+        commandId: doorError.commandId || null,
+        doorCommandStatus: "busy",
+        deviceMessage: doorError.message || "",
+      });
+
+      doorSession.completed = true;
+      doorSession.completedAt = new Date();
+      doorSession.notes = `${doorSession.notes || ""} | Door busy / queue failed.`;
+      await doorSession.save();
+
+      return res.status(doorError.statusCode || 500).json({
+        success: false,
+        accessGranted: false,
+        doorOpened: false,
+        status: "busy",
+        message:
+          doorError.message ||
+          "Door is busy. Please scan again after the door closes.",
+        commandId: doorError.commandId || null,
         doorSessionId: doorSession._id,
-      },
-    });
+      });
+    }
 
     return res.status(200).json({
       success: true,
       accessGranted: true,
-      doorOpened: doorResult.success,
+      doorOpened: false,
+      status: "pending",
       doorMode: doorResult.mode,
       doorMessage: doorResult.message,
+      commandId: doorResult.commandId,
+      sessionId: doorSession._id,
       doorSessionId: doorSession._id,
       action: "exit",
-      isInside: user.isInsideGym,
-      isInsideGym: user.isInsideGym,
-      message: "Exit successful ✅",
+      message: "Exit approved. Unlocking door...",
       user,
     });
   } catch (error) {

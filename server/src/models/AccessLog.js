@@ -57,13 +57,40 @@ const accessLogSchema = new mongoose.Schema(
 
     doorMode: {
       type: String,
-      default: "mock",
+      default: "poll",
       trim: true,
     },
 
     scanMethod: {
       type: String,
       default: "qr",
+      trim: true,
+    },
+
+    sessionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DoorAccessSession",
+      default: null,
+      index: true,
+    },
+
+    commandId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DoorCommand",
+      default: null,
+      index: true,
+    },
+
+    doorCommandStatus: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    deviceMessage: {
+      type: String,
+      default: "",
       trim: true,
     },
   },

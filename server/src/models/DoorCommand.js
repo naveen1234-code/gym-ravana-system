@@ -24,7 +24,7 @@ const doorCommandSchema = new mongoose.Schema(
 
     action: {
       type: String,
-      enum: ["unlock"],
+      enum: ["unlock", "restart", "status"],
       default: "unlock",
       required: true,
       index: true,
@@ -46,12 +46,42 @@ const doorCommandSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "claimed", "completed", "expired"],
+      enum: [
+        "pending",
+        "claimed",
+
+        "unlocked",
+        "busy",
+        "failed",
+        "rejected_door_open",
+        "rejected_unknown_action",
+        "duplicate_ignored",
+        "restarting",
+        "online",
+
+        "completed",
+        "expired",
+      ],
       default: "pending",
       index: true,
     },
 
     claimedAt: {
+      type: Date,
+      default: null,
+    },
+
+    acknowledgedAt: {
+      type: Date,
+      default: null,
+    },
+
+    unlockedAt: {
+      type: Date,
+      default: null,
+    },
+
+    failedAt: {
       type: Date,
       default: null,
     },
@@ -66,8 +96,44 @@ const doorCommandSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+
+    deviceAckStatus: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    deviceMessage: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    deviceState: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    deviceReed: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    deviceFreeHeap: {
+      type: Number,
+      default: null,
+    },
   },
   { timestamps: true }
 );
+
+doorCommandSchema.index({
+  deviceId: 1,
+  status: 1,
+  expiresAt: 1,
+  createdAt: 1,
+});
 
 module.exports = mongoose.model("DoorCommand", doorCommandSchema);

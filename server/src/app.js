@@ -9,6 +9,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const accessRoutes = require("./routes/accessRoutes");
 const galleryRoutes = require("./routes/galleryRoutes");
 const galleryAdminRoutes = require("./routes/galleryAdminRoutes");
+const systemRoutes = require("./routes/systemRoutes");
 
 const app = express();
 
@@ -28,7 +29,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/access", accessRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/gallery-admin", galleryAdminRoutes);
-
+app.use("/api/system", systemRoutes);
 // HEALTH CHECK
 app.get("/", (req, res) => {
   res.send("GYM RAVANA backend is running ✅");
