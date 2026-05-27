@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const multer = require("multer");
 
 const BodyProgressEntry = require("../models/BodyProgressEntry");
@@ -9,7 +11,19 @@ const {
   safeUnlink,
 } = require("../utils/cloudinaryBodyProgress");
 
-const upload = multer({ dest: "uploads/tmp/body-progress" });
+const uploadDir = path.join(__dirname, "../../uploads/tmp/body-progress");
+fs.mkdirSync(uploadDir, { recursive: true });
+
+const upload = multer({ dest: uploadDir });
+
+// multer.fields() returns { front: [file], side: [file] }, not a flat array
+const flattenMulterFiles = (files) => {
+  if (!files) return [];
+  if (Array.isArray(files)) return files;
+  return Object.values(files).flat();
+};
+
+const resolveActorUserId = (req) => req.user?.id || req.user?._id || null;
 
 const parseNumberOrNull = (value) => {
   if (value === undefined || value === null || value === "") return null;
@@ -97,7 +111,7 @@ const createEntryForUser = async (req, res) => {
 
     const photos = [];
 
-    uploadedFiles = req.files || [];
+    uploadedFiles = flattenMulterFiles(req.files);
     for (const file of uploadedFiles) {
       const kind = toPhotoKind(file.fieldname);
       if (!kind) continue;
@@ -114,6 +128,11 @@ const createEntryForUser = async (req, res) => {
     // cleanup tmp files
     await Promise.all(uploadedFiles.map((f) => safeUnlink(f.path)));
 
+    const actorUserId = resolveActorUserId(req);
+    if (!actorUserId) {
+      return res.status(401).json({ message: "Authenticated user is required" });
+    }
+
     const entry = await BodyProgressEntry.create({
       userId,
       recordedAt: body.recordedAt || new Date(),
@@ -124,11 +143,12 @@ const createEntryForUser = async (req, res) => {
       armCm: body.armCm,
       thighCm: body.thighCm,
       photos,
-      createdBy: { actor, userId: req.user?.id },
+      createdBy: { actor, userId: actorUserId },
     });
 
     return res.status(201).json({ message: "Body progress entry created", entry });
   } catch (error) {
+    console.error("CREATE BODY PROGRESS ERROR:", error);
     // cleanup tmp files
     try {
       await Promise.all((uploadedFiles || []).map((f) => safeUnlink(f.path)));
@@ -168,7 +188,7 @@ const updateEntryForUser = async (req, res) => {
     if (req.body.thighCm !== undefined) entry.thighCm = body.thighCm;
 
     // Photo replacements: if a kind is uploaded, replace that kind.
-    uploadedFiles = req.files || [];
+    uploadedFiles = flattenMulterFiles(req.files);
     for (const file of uploadedFiles) {
       const kind = toPhotoKind(file.fieldname);
       if (!kind) continue;
@@ -192,7 +212,7 @@ const updateEntryForUser = async (req, res) => {
 
     entry.updatedBy = {
       actor,
-      userId: req.user?.id || null,
+      userId: resolveActorUserId(req),
       at: new Date(),
     };
 
@@ -200,6 +220,7 @@ const updateEntryForUser = async (req, res) => {
 
     return res.status(200).json({ message: "Body progress entry updated", entry });
   } catch (error) {
+    console.error("UPDATE BODY PROGRESS ERROR:", error);
     try {
       await Promise.all((uploadedFiles || []).map((f) => safeUnlink(f.path)));
     } catch {}
