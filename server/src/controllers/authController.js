@@ -515,6 +515,39 @@ const approveLegacyClaim = async (req, res) => {
   }
 };
 
+// REJECT LEGACY CLAIM (ADMIN)
+const rejectLegacyClaim = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const claim = await LegacyClaim.findById(id);
+
+    if (!claim) {
+      return res.status(404).json({ message: "Legacy claim not found" });
+    }
+
+    if (claim.status !== 'pending') {
+      return res.status(400).json({ message: "Claim has already been processed" });
+    }
+
+    // Update claim
+    claim.status = 'rejected';
+    claim.processed = true;
+    claim.processedAt = new Date();
+    await claim.save();
+
+    return res.status(200).json({
+      message: "Legacy claim rejected successfully",
+      claim,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -533,4 +566,5 @@ module.exports = {
   retryFailedMemberSMS,
   getLegacyClaims,
   approveLegacyClaim,
+  rejectLegacyClaim,
 };
