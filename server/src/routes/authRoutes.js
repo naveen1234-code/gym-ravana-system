@@ -20,6 +20,10 @@ const {
   getLegacyClaims,
   approveLegacyClaim,
   rejectLegacyClaim,
+  updateProfilePicture,
+  logHealthMetrics,
+  getHealthMetrics,
+  updateProfileDetails,
 } = require("../controllers/authController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -45,6 +49,11 @@ router.put("/legacy-claims/:id/reject", protect, adminOnly, rejectLegacyClaim);
 // MEMBER ACCESS
 router.post("/check-in", protect, checkInMember);
 router.post("/check-out", protect, checkOutMember);
+// PROFILE & HEALTH
+router.put("/profile-picture", protect, updateProfilePicture);
+router.post("/health-metrics", protect, logHealthMetrics);
+router.get("/health-metrics", protect, getHealthMetrics);
+router.put("/profile-details", protect, updateProfileDetails);
 
 // TEST EMAIL
 router.get("/test-mail", sendApplicationEmailTest);

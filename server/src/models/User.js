@@ -243,6 +243,64 @@ const userSchema = new mongoose.Schema(
         },
         message: 'Invalid legacyClaimId'
       }
+    },
+    // Profile picture URL
+    profilePicture: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    // Health metrics
+    healthMetrics: {
+      weightLogs: [{
+        weight: Number,
+        date: {
+          type: Date,
+          default: Date.now
+        }
+      }],
+      bodyFatLogs: [{
+        bodyFat: Number,
+        date: {
+          type: Date,
+          default: Date.now
+        }
+      }],
+      muscleMassLogs: [{
+        muscleMass: Number,
+        date: {
+          type: Date,
+          default: Date.now
+        }
+      }],
+      hydrationLogs: [{
+        amount: Number,
+        date: {
+          type: Date,
+          default: Date.now
+        }
+      }],
+      sleepLogs: [{
+        quality: String,
+        hours: Number,
+        date: {
+          type: Date,
+          default: Date.now
+        }
+      }],
+      progressPhotos: [{
+        url: String,
+        date: {
+          type: Date,
+          default: Date.now
+        }
+      }]
+    },
+    // Fitness goals
+    fitnessGoals: {
+      type: String,
+      default: "",
+      trim: true,
     }
   },
   { timestamps: true }

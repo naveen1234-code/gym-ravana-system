@@ -548,6 +548,176 @@ const rejectLegacyClaim = async (req, res) => {
   }
 };
 
+// UPDATE PROFILE PICTURE
+const updateProfilePicture = async (req, res) => {
+  try {
+    const { profilePicture } = req.body;
+    const userId = req.user.id;
+
+    if (!profilePicture) {
+      return res.status(400).json({ message: "Profile picture URL is required" });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.profilePicture = profilePicture;
+    await user.save();
+
+    return res.status(200).json({
+      message: "Profile picture updated successfully",
+      profilePicture: user.profilePicture,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// LOG HEALTH METRICS
+const logHealthMetrics = async (req, res) => {
+  try {
+    const { type, value, additionalData } = req.body;
+    const userId = req.user.id;
+
+    if (!type || !value) {
+      return res.status(400).json({ message: "Type and value are required" });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Initialize healthMetrics if it doesn't exist
+    if (!user.healthMetrics) {
+      user.healthMetrics = {
+        weightLogs: [],
+        bodyFatLogs: [],
+        muscleMassLogs: [],
+        hydrationLogs: [],
+        sleepLogs: [],
+        progressPhotos: []
+      };
+    }
+
+    const logEntry = {
+      date: new Date()
+    };
+
+    switch (type) {
+      case 'weight':
+        logEntry.weight = Number(value);
+        user.healthMetrics.weightLogs.push(logEntry);
+        break;
+      case 'bodyFat':
+        logEntry.bodyFat = Number(value);
+        user.healthMetrics.bodyFatLogs.push(logEntry);
+        break;
+      case 'muscleMass':
+        logEntry.muscleMass = Number(value);
+        user.healthMetrics.muscleMassLogs.push(logEntry);
+        break;
+      case 'hydration':
+        logEntry.amount = Number(value);
+        user.healthMetrics.hydrationLogs.push(logEntry);
+        break;
+      case 'sleep':
+        logEntry.quality = additionalData?.quality || 'good';
+        logEntry.hours = Number(value);
+        user.healthMetrics.sleepLogs.push(logEntry);
+        break;
+      case 'progressPhoto':
+        logEntry.url = value;
+        user.healthMetrics.progressPhotos.push(logEntry);
+        break;
+      default:
+        return res.status(400).json({ message: "Invalid metric type" });
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Health metric logged successfully",
+      healthMetrics: user.healthMetrics,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// GET HEALTH METRICS
+const getHealthMetrics = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).select('healthMetrics');
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({
+      healthMetrics: user.healthMetrics || {
+        weightLogs: [],
+        bodyFatLogs: [],
+        muscleMassLogs: [],
+        hydrationLogs: [],
+        sleepLogs: [],
+        progressPhotos: []
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// UPDATE PROFILE DETAILS
+const updateProfileDetails = async (req, res) => {
+  try {
+    const { fullName, mobileNumber, fitnessGoals } = req.body;
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (fullName) user.fullName = fullName;
+    if (mobileNumber) user.mobileNumber = mobileNumber;
+    if (fitnessGoals) user.fitnessGoals = fitnessGoals;
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Profile details updated successfully",
+      user: {
+        fullName: user.fullName,
+        mobileNumber: user.mobileNumber,
+        fitnessGoals: user.fitnessGoals,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -567,4 +737,8 @@ module.exports = {
   getLegacyClaims,
   approveLegacyClaim,
   rejectLegacyClaim,
+  updateProfilePicture,
+  logHealthMetrics,
+  getHealthMetrics,
+  updateProfileDetails,
 };
