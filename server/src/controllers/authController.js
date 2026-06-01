@@ -1,3 +1,5 @@
+
+
 const User = require("../models/User");
 const LegacyClaim = require("../models/LegacyClaim");
 const bcrypt = require("bcryptjs");
@@ -718,6 +720,88 @@ const updateProfileDetails = async (req, res) => {
   }
 };
 
+// SAVE MEASUREMENT HISTORY
+const saveMeasurementHistory = async (req, res) => {
+  try {
+    const {
+      weight,
+      bodyFat,
+      muscleMass,
+      chest,
+      shoulders,
+      waist,
+      hips,
+      leftBicep,
+      rightBicep,
+      leftThigh,
+      rightThigh,
+    } = req.body;
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Initialize healthMetrics if it doesn't exist
+    if (!user.healthMetrics) {
+      user.healthMetrics = {
+        weightLogs: [],
+        bodyFatLogs: [],
+        muscleMassLogs: [],
+        hydrationLogs: [],
+        sleepLogs: [],
+        progressPhotos: [],
+        measurementHistory: []
+      };
+    }
+
+    if (!user.healthMetrics.measurementHistory) {
+      user.healthMetrics.measurementHistory = [];
+    }
+
+    // Add new measurement entry
+    user.healthMetrics.measurementHistory.push({
+      timestamp: new Date(),
+      weight: Number(weight) || 0,
+      bodyFat: Number(bodyFat) || 0,
+      muscleMass: Number(muscleMass) || 0,
+      chest: Number(chest) || 0,
+      shoulders: Number(shoulders) || 0,
+      waist: Number(waist) || 0,
+      hips: Number(hips) || 0,
+      leftBicep: Number(leftBicep) || 0,
+      rightBicep: Number(rightBicep) || 0,
+      leftThigh: Number(leftThigh) || 0,
+      rightThigh: Number(rightThigh) || 0,
+    });
+
+    // Also update individual logs for consistency
+    if (weight > 0) {
+      user.healthMetrics.weightLogs.push({ weight: Number(weight), date: new Date() });
+    }
+    if (bodyFat > 0) {
+      user.healthMetrics.bodyFatLogs.push({ bodyFat: Number(bodyFat), date: new Date() });
+    }
+    if (muscleMass > 0) {
+      user.healthMetrics.muscleMassLogs.push({ muscleMass: Number(muscleMass), date: new Date() });
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Measurement history saved successfully",
+      measurementHistory: user.healthMetrics.measurementHistory,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -741,4 +825,5 @@ module.exports = {
   logHealthMetrics,
   getHealthMetrics,
   updateProfileDetails,
+  saveMeasurementHistory,
 };

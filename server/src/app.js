@@ -12,6 +12,8 @@ const galleryAdminRoutes = require("./routes/galleryAdminRoutes");
 const systemRoutes = require("./routes/systemRoutes");
 const bodyProgressRoutes = require("./routes/bodyProgressRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const uploadRoutes = require("./routes/upload");
+const aiRoutes = require("./routes/aiRoutes");
 
 const app = express();
 
@@ -34,6 +36,8 @@ app.use("/api/gallery-admin", galleryAdminRoutes);
 app.use("/api/system", systemRoutes);
 app.use("/api/body-progress", bodyProgressRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/upload", uploadRoutes);
+app.use("/api/analytics", aiRoutes);
 // HEALTH CHECK
 app.get("/", (req, res) => {
   res.send("GYM RAVANA backend is running ✅");

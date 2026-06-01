@@ -250,7 +250,7 @@ const userSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
-    // Health metrics
+    // Health metrics with detailed body measurements
     healthMetrics: {
       weightLogs: [{
         weight: Number,
@@ -294,6 +294,24 @@ const userSchema = new mongoose.Schema(
           type: Date,
           default: Date.now
         }
+      }],
+      // Detailed body measurement history
+      measurementHistory: [{
+        timestamp: {
+          type: Date,
+          default: Date.now
+        },
+        weight: Number,
+        bodyFat: Number,
+        muscleMass: Number,
+        chest: Number,
+        shoulders: Number,
+        waist: Number,
+        hips: Number,
+        leftBicep: Number,
+        rightBicep: Number,
+        leftThigh: Number,
+        rightThigh: Number
       }]
     },
     // Fitness goals

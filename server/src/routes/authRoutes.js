@@ -24,6 +24,7 @@ const {
   logHealthMetrics,
   getHealthMetrics,
   updateProfileDetails,
+  saveMeasurementHistory,
 } = require("../controllers/authController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -54,6 +55,7 @@ router.put("/profile-picture", protect, updateProfilePicture);
 router.post("/health-metrics", protect, logHealthMetrics);
 router.get("/health-metrics", protect, getHealthMetrics);
 router.put("/profile-details", protect, updateProfileDetails);
+router.post("/measurement-history", protect, saveMeasurementHistory);
 
 // TEST EMAIL
 router.get("/test-mail", sendApplicationEmailTest);
