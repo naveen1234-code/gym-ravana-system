@@ -13,6 +13,18 @@ const legacyClaimSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    legacyPlan: {
+      type: String,
+      required: true,
+      enum: ["1 Year", "6 Months", "3 Months", "Monthly"],
+      default: "Monthly",
+    },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+      index: true,
+    },
     claimedAt: {
       type: Date,
       default: Date.now,
@@ -21,7 +33,16 @@ const legacyClaimSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    processedAt: {
+      type: Date,
+      default: null,
+    },
     notes: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    ledgerDetails: {
       type: String,
       default: "",
       trim: true,
