@@ -200,7 +200,7 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-const GYM_QR_VALUE = require("../config/gymQr");
+const GYM_QR = require("../config/gymQr");
 
 const checkInMember = async (req, res) => {
   try {
@@ -210,8 +210,8 @@ const checkInMember = async (req, res) => {
       return res.status(400).json({ message: "QR value is required" });
     }
 
-    if (scannedQrValue !== GYM_QR_VALUE) {
-      return res.status(400).json({ message: "Invalid gym QR code" });
+    if (scannedQrValue !== GYM_QR.ENTRY) {
+      return res.status(400).json({ message: "Invalid gym QR code. Please scan the ENTRY QR." });
     }
 
     const user = await User.findById(req.user.id);
@@ -266,6 +266,16 @@ const checkInMember = async (req, res) => {
 // CHECK-OUT MEMBER
 const checkOutMember = async (req, res) => {
   try {
+    const { scannedQrValue } = req.body;
+
+    if (!scannedQrValue) {
+      return res.status(400).json({ message: "QR value is required" });
+    }
+
+    if (scannedQrValue !== GYM_QR.EXIT) {
+      return res.status(400).json({ message: "Invalid gym QR code. Please scan the EXIT QR." });
+    }
+
     const user = await User.findById(req.user.id);
 
     if (!user) {
