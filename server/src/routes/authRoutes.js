@@ -20,6 +20,7 @@ const {
   getLegacyClaims,
   approveLegacyClaim,
   rejectLegacyClaim,
+  updateLegacyClaim,
   updateProfilePicture,
   logHealthMetrics,
   getHealthMetrics,
