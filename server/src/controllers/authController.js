@@ -2,9 +2,14 @@
 
 const User = require("../models/User");
 const LegacyClaim = require("../models/LegacyClaim");
+const DoorAccessSession = require("../models/DoorAccessSession");
+const DoorCommand = require("../models/DoorCommand");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+
+const DOOR_DEVICE_ID = "main-door-controller";
+const COMMAND_EXPIRE_MS = 30000;
 
 // REGISTER
 const registerUser = async (req, res) => {
@@ -250,7 +255,7 @@ const GYM_QR = require("../config/gymQr");
 
 const checkInMember = async (req, res) => {
   try {
-    const { scannedQrValue } = req.body;
+    const { scannedQrValue, accessPoint = "main-door" } = req.body;
 
     if (!scannedQrValue) {
       return res.status(400).json({ message: "QR value is required" });
@@ -287,9 +292,50 @@ const checkInMember = async (req, res) => {
       }
     }
 
+    // Check for active pending command before creating new one
+    const activeCommand = await DoorCommand.findOne({
+      deviceId: DOOR_DEVICE_ID,
+      status: { $in: ["pending", "claimed"] },
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (activeCommand) {
+      return res.status(409).json({
+        message: "Door controller already has a pending command. Try again in a moment.",
+        commandId: activeCommand._id,
+      });
+    }
+
+    // Create door access session
+    const session = await DoorAccessSession.create({
+      userId: user._id,
+      userName: user.fullName || user.name || "Member",
+      userEmail: user.email,
+      action: "entry",
+      accessPoint,
+      unlockApproved: true,
+      triggeredBy: "qr_scan",
+      notes: "Member check-in via QR scan",
+    });
+
+    // Create door command for ESP32 to poll
+    const command = await DoorCommand.create({
+      sessionId: session._id,
+      userId: user._id,
+      userName: user.fullName || user.name || "Member",
+      action: "unlock",
+      accessPoint,
+      deviceId: DOOR_DEVICE_ID,
+      status: "pending",
+      expiresAt: new Date(Date.now() + COMMAND_EXPIRE_MS),
+    });
+
+    // Update user attendance
     user.attendanceCount += 1;
     user.remainingDays -= 1;
     user.lastCheckIn = today;
+    user.isInsideGym = true;
+    user.lastEntryAt = today;
 
     if (user.remainingDays <= 0) {
       user.membershipStatus = "expired";
@@ -300,6 +346,11 @@ const checkInMember = async (req, res) => {
     return res.status(200).json({
       message: "Check-in successful ✅",
       user,
+      commandId: command._id,
+      sessionId: session._id,
+      doorSessionId: session._id,
+      doorMode: "poll",
+      doorMessage: "Waiting for ESP32 confirmation.",
     });
   } catch (error) {
     return res.status(500).json({
@@ -312,7 +363,7 @@ const checkInMember = async (req, res) => {
 // CHECK-OUT MEMBER
 const checkOutMember = async (req, res) => {
   try {
-    const { scannedQrValue } = req.body;
+    const { scannedQrValue, accessPoint = "main-door" } = req.body;
 
     if (!scannedQrValue) {
       return res.status(400).json({ message: "QR value is required" });
@@ -328,13 +379,58 @@ const checkOutMember = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Check for active pending command before creating new one
+    const activeCommand = await DoorCommand.findOne({
+      deviceId: DOOR_DEVICE_ID,
+      status: { $in: ["pending", "claimed"] },
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (activeCommand) {
+      return res.status(409).json({
+        message: "Door controller already has a pending command. Try again in a moment.",
+        commandId: activeCommand._id,
+      });
+    }
+
+    // Create door access session
+    const session = await DoorAccessSession.create({
+      userId: user._id,
+      userName: user.fullName || user.name || "Member",
+      userEmail: user.email,
+      action: "exit",
+      accessPoint,
+      unlockApproved: true,
+      triggeredBy: "qr_scan",
+      notes: "Member check-out via QR scan",
+    });
+
+    // Create door command for ESP32 to poll
+    const command = await DoorCommand.create({
+      sessionId: session._id,
+      userId: user._id,
+      userName: user.fullName || user.name || "Member",
+      action: "unlock",
+      accessPoint,
+      deviceId: DOOR_DEVICE_ID,
+      status: "pending",
+      expiresAt: new Date(Date.now() + COMMAND_EXPIRE_MS),
+    });
+
+    // Update user exit status
     user.isInsideGym = false;
     user.lastExitAt = new Date();
+
     await user.save();
 
     return res.status(200).json({
       message: "Check-out successful ✅",
       user,
+      commandId: command._id,
+      sessionId: session._id,
+      doorSessionId: session._id,
+      doorMode: "poll",
+      doorMessage: "Waiting for ESP32 confirmation.",
     });
   } catch (error) {
     return res.status(500).json({
