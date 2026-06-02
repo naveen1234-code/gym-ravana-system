@@ -47,6 +47,7 @@ router.post("/retry-failed-member-sms", protect, adminOnly, retryFailedMemberSMS
 router.get("/legacy-claims", protect, adminOnly, getLegacyClaims);
 router.put("/legacy-claims/:id/approve", protect, adminOnly, approveLegacyClaim);
 router.put("/legacy-claims/:id/reject", protect, adminOnly, rejectLegacyClaim);
+router.put("/legacy-claims/:id", protect, adminOnly, updateLegacyClaim);
 // MEMBER ACCESS
 router.post("/check-in", protect, checkInMember);
 router.post("/check-out", protect, checkOutMember);

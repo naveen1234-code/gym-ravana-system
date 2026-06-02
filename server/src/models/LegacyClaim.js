@@ -19,6 +19,21 @@ const legacyClaimSchema = new mongoose.Schema(
       enum: ["1 Year", "6 Months", "3 Months", "Monthly"],
       default: "Monthly",
     },
+    claimedPhoneNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    startMonth: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    startYear: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

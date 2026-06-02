@@ -52,12 +52,18 @@ const registerUser = async (req, res) => {
           userId: user._id,
           claimId,
           legacyPlan: legacyDetails.previousMembershipPlanType,
+          claimedPhoneNumber: legacyDetails.claimedPhoneNumber,
+          startMonth: legacyDetails.startMonth,
+          startYear: legacyDetails.startYear,
         });
 
         const legacyClaim = await LegacyClaim.create({
           userId: user._id,
           claimId,
           legacyPlan: legacyDetails.previousMembershipPlanType,
+          claimedPhoneNumber: legacyDetails.claimedPhoneNumber,
+          startMonth: legacyDetails.startMonth,
+          startYear: legacyDetails.startYear,
           status: "pending",
           claimedAt: new Date(),
         });
@@ -600,6 +606,37 @@ const rejectLegacyClaim = async (req, res) => {
   }
 };
 
+// UPDATE LEGACY CLAIM (ADMIN)
+const updateLegacyClaim = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { claimedPhoneNumber, startMonth, startYear, previousMembershipPlanType } = req.body;
+
+    const claim = await LegacyClaim.findById(id);
+
+    if (!claim) {
+      return res.status(404).json({ message: "Legacy claim not found" });
+    }
+
+    if (claimedPhoneNumber !== undefined) claim.claimedPhoneNumber = claimedPhoneNumber;
+    if (startMonth !== undefined) claim.startMonth = startMonth;
+    if (startYear !== undefined) claim.startYear = startYear;
+    if (previousMembershipPlanType !== undefined) claim.legacyPlan = previousMembershipPlanType;
+
+    await claim.save();
+
+    return res.status(200).json({
+      message: "Legacy claim updated successfully",
+      claim,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 // UPDATE PROFILE PICTURE
 const updateProfilePicture = async (req, res) => {
   try {
@@ -871,6 +908,7 @@ module.exports = {
   getLegacyClaims,
   approveLegacyClaim,
   rejectLegacyClaim,
+  updateLegacyClaim,
   updateProfilePicture,
   logHealthMetrics,
   getHealthMetrics,
