@@ -7,6 +7,7 @@ const DoorCommand = require("../models/DoorCommand");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const GYM_QR = require("../config/gymQr");
 
 const DOOR_DEVICE_ID = "main-door-controller";
 const COMMAND_EXPIRE_MS = 30000;
@@ -251,8 +252,6 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-const GYM_QR = require("../config/gymQr");
-
 const checkInMember = async (req, res) => {
   try {
     const { scannedQrValue, accessPoint = "main-door" } = req.body;
@@ -314,7 +313,7 @@ const checkInMember = async (req, res) => {
       action: "entry",
       accessPoint,
       unlockApproved: true,
-      triggeredBy: "qr_scan",
+      triggeredBy: "member_qr",
       notes: "Member check-in via QR scan",
     });
 
@@ -401,7 +400,7 @@ const checkOutMember = async (req, res) => {
       action: "exit",
       accessPoint,
       unlockApproved: true,
-      triggeredBy: "qr_scan",
+      triggeredBy: "member_qr",
       notes: "Member check-out via QR scan",
     });
 
