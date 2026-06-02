@@ -9,7 +9,9 @@ const crypto = require("crypto");
 // REGISTER
 const registerUser = async (req, res) => {
   try {
-    const { name, fullName, email, password } = req.body;
+    const { name, fullName, email, password, isLegacyMember, legacyDetails } = req.body;
+
+    console.log("BACKEND REGISTER PAYLOAD:", { name, fullName, email, isLegacyMember, legacyDetails });
 
     // Use fullName if name is not provided
     const userName = name || fullName;
@@ -40,6 +42,33 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
     });
 
+    console.log("BACKEND DETECTED LEGACY CLAIM:", isLegacyMember, legacyDetails);
+
+    // Handle legacy claim if present
+    if (isLegacyMember && legacyDetails) {
+      try {
+        const claimId = `${user._id}-${Date.now()}`;
+        console.log("CREATING LEGACY CLAIM WITH:", {
+          userId: user._id,
+          claimId,
+          legacyPlan: legacyDetails.previousMembershipPlanType,
+        });
+
+        const legacyClaim = await LegacyClaim.create({
+          userId: user._id,
+          claimId,
+          legacyPlan: legacyDetails.previousMembershipPlanType,
+          status: "pending",
+          claimedAt: new Date(),
+        });
+
+        console.log("LEGACY CLAIM CREATED SUCCESSFULLY:", legacyClaim);
+      } catch (legacyError) {
+        console.error("LEGACY SAVE ERROR:", legacyError);
+        // Don't fail registration if legacy claim fails, but log the error
+      }
+    }
+
     return res.status(201).json({
       message: "User registered successfully",
       user: {
@@ -50,6 +79,7 @@ const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("REGISTER ERROR:", error);
     return res.status(500).json({
       message: "Server error",
       error: error.message,
