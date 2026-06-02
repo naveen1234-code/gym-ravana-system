@@ -9,10 +9,20 @@ const crypto = require("crypto");
 // REGISTER
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, fullName, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "Please fill all fields" });
+    // Use fullName if name is not provided
+    const userName = name || fullName;
+
+    // Validate required fields with specific error messages
+    if (!userName) {
+      return res.status(400).json({ message: "Missing field: name" });
+    }
+    if (!email) {
+      return res.status(400).json({ message: "Missing field: email" });
+    }
+    if (!password) {
+      return res.status(400).json({ message: "Missing field: password" });
     }
 
     const existingUser = await User.findOne({ email });
@@ -25,7 +35,7 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const user = await User.create({
-      name,
+      name: userName,
       email,
       password: hashedPassword,
     });
