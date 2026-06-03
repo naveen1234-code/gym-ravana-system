@@ -114,10 +114,12 @@ const processMembershipsForToday = async () => {
 
         try {
           if (user.mobileNumber) {
-            await sendSMS({
+            sendSMS({
               phone: user.mobileNumber,
               message:
                 "Gym Ravana: Your membership expires in 7 days. Renew early to avoid interruption.",
+            }).catch(smsError => {
+              console.error("7 DAY MEMBER SMS ERROR:", smsError.message);
             });
           }
         } catch (smsError) {
@@ -126,9 +128,11 @@ const processMembershipsForToday = async () => {
 
         try {
           if (process.env.ADMIN_MOBILE_NUMBER) {
-            await sendSMS({
+            sendSMS({
               phone: process.env.ADMIN_MOBILE_NUMBER,
               message: `Gym Ravana Admin: ${user.fullName || user.name} membership expires in 7 days.`,
+            }).catch(smsError => {
+              console.error("7 DAY ADMIN SMS ERROR:", smsError.message);
             });
           }
         } catch (smsError) {
@@ -164,10 +168,12 @@ const processMembershipsForToday = async () => {
 
         try {
           if (user.mobileNumber) {
-            await sendSMS({
+            sendSMS({
               phone: user.mobileNumber,
               message:
                 "Gym Ravana: Your membership expires in 3 days. Please renew soon.",
+            }).catch(smsError => {
+              console.error("3 DAY MEMBER SMS ERROR:", smsError.message);
             });
           }
         } catch (smsError) {
@@ -176,9 +182,11 @@ const processMembershipsForToday = async () => {
 
         try {
           if (process.env.ADMIN_MOBILE_NUMBER) {
-            await sendSMS({
+            sendSMS({
               phone: process.env.ADMIN_MOBILE_NUMBER,
               message: `Gym Ravana Admin: ${user.fullName || user.name} membership expires in 3 days.`,
+            }).catch(smsError => {
+              console.error("3 DAY ADMIN SMS ERROR:", smsError.message);
             });
           }
         } catch (smsError) {
@@ -214,10 +222,12 @@ const processMembershipsForToday = async () => {
 
         try {
           if (user.mobileNumber) {
-            await sendSMS({
+            sendSMS({
               phone: user.mobileNumber,
               message:
                 "Gym Ravana: Your membership expires tomorrow. Renew now to keep access active.",
+            }).catch(smsError => {
+              console.error("1 DAY MEMBER SMS ERROR:", smsError.message);
             });
           }
         } catch (smsError) {
@@ -226,9 +236,11 @@ const processMembershipsForToday = async () => {
 
         try {
           if (process.env.ADMIN_MOBILE_NUMBER) {
-            await sendSMS({
+            sendSMS({
               phone: process.env.ADMIN_MOBILE_NUMBER,
               message: `Gym Ravana Admin: ${user.fullName || user.name} membership expires tomorrow.`,
+            }).catch(smsError => {
+              console.error("1 DAY ADMIN SMS ERROR:", smsError.message);
             });
           }
         } catch (smsError) {
@@ -264,10 +276,12 @@ const processMembershipsForToday = async () => {
 
         try {
           if (user.mobileNumber) {
-            await sendSMS({
+            sendSMS({
               phone: user.mobileNumber,
               message:
                 "Gym Ravana: Your membership has expired. Please renew to continue access.",
+            }).catch(smsError => {
+              console.error("EXPIRED MEMBER SMS ERROR:", smsError.message);
             });
           }
         } catch (smsError) {
@@ -276,9 +290,11 @@ const processMembershipsForToday = async () => {
 
         try {
           if (process.env.ADMIN_MOBILE_NUMBER) {
-            await sendSMS({
+            sendSMS({
               phone: process.env.ADMIN_MOBILE_NUMBER,
               message: `Gym Ravana Admin: ${user.fullName || user.name} membership has expired.`,
+            }).catch(smsError => {
+              console.error("EXPIRED ADMIN SMS ERROR:", smsError.message);
             });
           }
         } catch (smsError) {
