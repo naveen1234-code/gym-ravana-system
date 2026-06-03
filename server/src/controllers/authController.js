@@ -329,16 +329,11 @@ const checkInMember = async (req, res) => {
       expiresAt: new Date(Date.now() + COMMAND_EXPIRE_MS),
     });
 
-    // Update user attendance
+    // Update user attendance (read-only validation - no days deduction)
     user.attendanceCount += 1;
-    user.remainingDays -= 1;
     user.lastCheckIn = today;
     user.isInsideGym = true;
     user.lastEntryAt = today;
-
-    if (user.remainingDays <= 0) {
-      user.membershipStatus = "expired";
-    }
 
     await user.save();
 

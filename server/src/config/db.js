@@ -2,15 +2,7 @@ const mongoose = require("mongoose");
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 10000, // Timeout after 10 seconds
-      socketTimeoutMS: 45000,
-      ssl: true,
-      tlsAllowInvalidCertificates: false,
-    });
-    console.log("MongoDB connected with connection pool configured");
-
-    // Handle connection events
+    // Set connection event handlers BEFORE connecting
     mongoose.connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
     });
@@ -22,6 +14,19 @@ const connectDB = async () => {
     mongoose.connection.on('reconnected', () => {
       console.log('MongoDB reconnected');
     });
+
+    // Wait for connection to be fully established with retry logic
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 60000, // Increased to 60 seconds
+      socketTimeoutMS: 45000,
+      ssl: true,
+      tlsAllowInvalidCertificates: false,
+      connectTimeoutMS: 60000,
+      retryWrites: true,
+      w: 'majority',
+    });
+
+    console.log("MongoDB connected with connection pool configured");
 
   } catch (error) {
     console.error("MONGO DB RAW ERROR:", error);

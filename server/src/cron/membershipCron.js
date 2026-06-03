@@ -81,6 +81,11 @@ const processMembershipsForToday = async () => {
         user.remainingDays = 0;
       }
 
+      // Explicitly set status to expired when days reach 0
+      if (user.remainingDays === 0) {
+        user.membershipStatus = "expired";
+      }
+
       const daysLeft = user.remainingDays;
 
       if (daysLeft === 7 && !user.notificationFlags.warning7) {
