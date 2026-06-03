@@ -2,16 +2,12 @@ const mongoose = require("mongoose");
 
 const connectDB = async () => {
   try {
-    // Configure connection pool settings to prevent starvation
-    const options = {
-      maxPoolSize: 10, // Maximum number of connections in the pool
-      minPoolSize: 2, // Minimum number of connections to keep in pool
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-      serverSelectionTimeoutMS: 5000, // Timeout for server selection
-      maxIdleTimeMS: 30000, // Close idle connections after 30 seconds
-    };
-
-    await mongoose.connect(process.env.MONGO_URI, options);
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 10000, // Timeout after 10 seconds
+      socketTimeoutMS: 45000,
+      ssl: true,
+      tlsAllowInvalidCertificates: false,
+    });
     console.log("MongoDB connected with connection pool configured");
 
     // Handle connection events
@@ -28,7 +24,10 @@ const connectDB = async () => {
     });
 
   } catch (error) {
-    console.error("MongoDB connection failed:", error.message);
+    console.error("MONGO DB RAW ERROR:", error);
+    console.error("Error name:", error.name);
+    console.error("Error code:", error.code);
+    console.error("MONGO_URI value:", process.env.MONGO_URI ? "SET" : "UNDEFINED");
     process.exit(1);
   }
 };
