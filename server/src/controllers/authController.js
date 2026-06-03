@@ -987,7 +987,7 @@ const saveMeasurementHistory = async (req, res) => {
 // SAVE BEFORE/AFTER MEASUREMENTS
 const saveBeforeAfterMeasurements = async (req, res) => {
   try {
-    const { type, measurements } = req.body; // type: "before" or "after"
+    const { type, measurements, targetWeight, bmi } = req.body; // type: "before" or "after"
     const userId = req.user.id;
 
     const user = await User.findById(userId);
@@ -999,6 +999,8 @@ const saveBeforeAfterMeasurements = async (req, res) => {
     // Initialize healthMetrics if it doesn't exist
     if (!user.healthMetrics) {
       user.healthMetrics = {
+        targetWeight: 0,
+        bmi: 0,
         beforeAfterMeasurements: {
           before: {},
           after: {}
@@ -1017,28 +1019,28 @@ const saveBeforeAfterMeasurements = async (req, res) => {
       };
     }
 
-    // Check edit restriction for before measurements
-    if (type === "before") {
-      const currentBefore = user.healthMetrics.beforeAfterMeasurements.before;
-      if (currentBefore && currentBefore.editCount >= 1) {
-        return res.status(400).json({ message: "Before measurements can only be edited once" });
-      }
-    }
-
-    // Update measurements
+    // Update measurements (no editCount restriction)
     user.healthMetrics.beforeAfterMeasurements[type] = {
       ...measurements,
-      timestamp: new Date(),
-      editCount: type === "before" 
-        ? (user.healthMetrics.beforeAfterMeasurements.before?.editCount || 0) + 1
-        : user.healthMetrics.beforeAfterMeasurements.after?.editCount || 0
+      timestamp: new Date()
     };
+
+    // Update targetWeight and bmi if provided
+    if (targetWeight !== undefined) {
+      user.healthMetrics.targetWeight = targetWeight;
+    }
+
+    if (bmi !== undefined) {
+      user.healthMetrics.bmi = bmi;
+    }
 
     await user.save();
 
     return res.status(200).json({
       message: `${type} measurements saved successfully`,
       beforeAfterMeasurements: user.healthMetrics.beforeAfterMeasurements,
+      targetWeight: user.healthMetrics.targetWeight,
+      bmi: user.healthMetrics.bmi,
     });
   } catch (error) {
     return res.status(500).json({

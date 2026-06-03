@@ -252,6 +252,16 @@ const userSchema = new mongoose.Schema(
     },
     // Health metrics with before/after measurements and photos
     healthMetrics: {
+      // Target weight for progress tracking
+      targetWeight: {
+        type: Number,
+        default: 0
+      },
+      // Calculated BMI value
+      bmi: {
+        type: Number,
+        default: 0
+      },
       // Before/after measurements (single pair)
       beforeAfterMeasurements: {
         before: {
@@ -265,10 +275,6 @@ const userSchema = new mongoose.Schema(
           timestamp: {
             type: Date,
             default: Date.now
-          },
-          editCount: {
-            type: Number,
-            default: 0
           }
         },
         after: {
@@ -294,10 +300,6 @@ const userSchema = new mongoose.Schema(
             timestamp: {
               type: Date,
               default: Date.now
-            },
-            editCount: {
-              type: Number,
-              default: 0
             }
           },
           back: {
@@ -306,10 +308,6 @@ const userSchema = new mongoose.Schema(
             timestamp: {
               type: Date,
               default: Date.now
-            },
-            editCount: {
-              type: Number,
-              default: 0
             }
           },
           side: {
@@ -318,10 +316,6 @@ const userSchema = new mongoose.Schema(
             timestamp: {
               type: Date,
               default: Date.now
-            },
-            editCount: {
-              type: Number,
-              default: 0
             }
           }
         },
