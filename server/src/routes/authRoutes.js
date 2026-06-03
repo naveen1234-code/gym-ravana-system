@@ -26,6 +26,10 @@ const {
   getHealthMetrics,
   updateProfileDetails,
   saveMeasurementHistory,
+  saveBeforeAfterMeasurements,
+  uploadBeforeAfterPhoto,
+  deleteBeforeAfterPhoto,
+  calculateBMI,
 } = require("../controllers/authController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -58,6 +62,10 @@ router.post("/health-metrics", protect, logHealthMetrics);
 router.get("/health-metrics", protect, getHealthMetrics);
 router.put("/profile-details", protect, updateProfileDetails);
 router.post("/measurement-history", protect, saveMeasurementHistory);
+router.post("/before-after-measurements", protect, saveBeforeAfterMeasurements);
+router.post("/before-after-photos", protect, uploadBeforeAfterPhoto);
+router.delete("/before-after-photos/:type/:view", protect, deleteBeforeAfterPhoto);
+router.get("/bmi", protect, calculateBMI);
 
 // TEST EMAIL
 router.get("/test-mail", sendApplicationEmailTest);

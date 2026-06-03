@@ -250,69 +250,108 @@ const userSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
-    // Health metrics with detailed body measurements
+    // Health metrics with before/after measurements and photos
     healthMetrics: {
-      weightLogs: [{
-        weight: Number,
-        date: {
-          type: Date,
-          default: Date.now
-        }
-      }],
-      bodyFatLogs: [{
-        bodyFat: Number,
-        date: {
-          type: Date,
-          default: Date.now
-        }
-      }],
-      muscleMassLogs: [{
-        muscleMass: Number,
-        date: {
-          type: Date,
-          default: Date.now
-        }
-      }],
-      hydrationLogs: [{
-        amount: Number,
-        date: {
-          type: Date,
-          default: Date.now
-        }
-      }],
-      sleepLogs: [{
-        quality: String,
-        hours: Number,
-        date: {
-          type: Date,
-          default: Date.now
-        }
-      }],
-      progressPhotos: [{
-        url: String,
-        date: {
-          type: Date,
-          default: Date.now
-        }
-      }],
-      // Detailed body measurement history
-      measurementHistory: [{
-        timestamp: {
-          type: Date,
-          default: Date.now
+      // Before/after measurements (single pair)
+      beforeAfterMeasurements: {
+        before: {
+          weight: Number,
+          chest: Number,
+          waist: Number,
+          leftArm: Number,
+          rightArm: Number,
+          leftLeg: Number,
+          rightLeg: Number,
+          timestamp: {
+            type: Date,
+            default: Date.now
+          },
+          editCount: {
+            type: Number,
+            default: 0
+          }
         },
-        weight: Number,
-        bodyFat: Number,
-        muscleMass: Number,
-        chest: Number,
-        shoulders: Number,
-        waist: Number,
-        hips: Number,
-        leftBicep: Number,
-        rightBicep: Number,
-        leftThigh: Number,
-        rightThigh: Number
-      }]
+        after: {
+          weight: Number,
+          chest: Number,
+          waist: Number,
+          leftArm: Number,
+          rightArm: Number,
+          leftLeg: Number,
+          rightLeg: Number,
+          timestamp: {
+            type: Date,
+            default: Date.now
+          }
+        }
+      },
+      // Before/after photos (6 total: 3 before + 3 after)
+      beforeAfterPhotos: {
+        before: {
+          front: {
+            url: String,
+            publicId: String,
+            timestamp: {
+              type: Date,
+              default: Date.now
+            },
+            editCount: {
+              type: Number,
+              default: 0
+            }
+          },
+          back: {
+            url: String,
+            publicId: String,
+            timestamp: {
+              type: Date,
+              default: Date.now
+            },
+            editCount: {
+              type: Number,
+              default: 0
+            }
+          },
+          side: {
+            url: String,
+            publicId: String,
+            timestamp: {
+              type: Date,
+              default: Date.now
+            },
+            editCount: {
+              type: Number,
+              default: 0
+            }
+          }
+        },
+        after: {
+          front: {
+            url: String,
+            publicId: String,
+            timestamp: {
+              type: Date,
+              default: Date.now
+            }
+          },
+          back: {
+            url: String,
+            publicId: String,
+            timestamp: {
+              type: Date,
+              default: Date.now
+            }
+          },
+          side: {
+            url: String,
+            publicId: String,
+            timestamp: {
+              type: Date,
+              default: Date.now
+            }
+          }
+        }
+      }
     },
     // Fitness goals
     fitnessGoals: {

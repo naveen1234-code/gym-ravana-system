@@ -984,6 +984,232 @@ const saveMeasurementHistory = async (req, res) => {
   }
 };
 
+// SAVE BEFORE/AFTER MEASUREMENTS
+const saveBeforeAfterMeasurements = async (req, res) => {
+  try {
+    const { type, measurements } = req.body; // type: "before" or "after"
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Initialize healthMetrics if it doesn't exist
+    if (!user.healthMetrics) {
+      user.healthMetrics = {
+        beforeAfterMeasurements: {
+          before: {},
+          after: {}
+        },
+        beforeAfterPhotos: {
+          before: { front: {}, back: {}, side: {} },
+          after: { front: {}, back: {}, side: {} }
+        }
+      };
+    }
+
+    if (!user.healthMetrics.beforeAfterMeasurements) {
+      user.healthMetrics.beforeAfterMeasurements = {
+        before: {},
+        after: {}
+      };
+    }
+
+    // Check edit restriction for before measurements
+    if (type === "before") {
+      const currentBefore = user.healthMetrics.beforeAfterMeasurements.before;
+      if (currentBefore && currentBefore.editCount >= 1) {
+        return res.status(400).json({ message: "Before measurements can only be edited once" });
+      }
+    }
+
+    // Update measurements
+    user.healthMetrics.beforeAfterMeasurements[type] = {
+      ...measurements,
+      timestamp: new Date(),
+      editCount: type === "before" 
+        ? (user.healthMetrics.beforeAfterMeasurements.before?.editCount || 0) + 1
+        : user.healthMetrics.beforeAfterMeasurements.after?.editCount || 0
+    };
+
+    await user.save();
+
+    return res.status(200).json({
+      message: `${type} measurements saved successfully`,
+      beforeAfterMeasurements: user.healthMetrics.beforeAfterMeasurements,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// UPLOAD BEFORE/AFTER PHOTO
+const uploadBeforeAfterPhoto = async (req, res) => {
+  try {
+    const { type, view, url, publicId } = req.body; // type: "before" or "after", view: "front", "back", "side"
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Initialize healthMetrics if it doesn't exist
+    if (!user.healthMetrics) {
+      user.healthMetrics = {
+        beforeAfterMeasurements: {
+          before: {},
+          after: {}
+        },
+        beforeAfterPhotos: {
+          before: { front: {}, back: {}, side: {} },
+          after: { front: {}, back: {}, side: {} }
+        }
+      };
+    }
+
+    if (!user.healthMetrics.beforeAfterPhotos) {
+      user.healthMetrics.beforeAfterPhotos = {
+        before: { front: {}, back: {}, side: {} },
+        after: { front: {}, back: {}, side: {} }
+      };
+    }
+
+    // Check edit restriction for before photos
+    if (type === "before") {
+      const currentPhoto = user.healthMetrics.beforeAfterPhotos.before[view];
+      if (currentPhoto && currentPhoto.editCount >= 1) {
+        return res.status(400).json({ message: "Before photos can only be changed once" });
+      }
+    }
+
+    // Update photo
+    user.healthMetrics.beforeAfterPhotos[type][view] = {
+      url,
+      publicId,
+      timestamp: new Date(),
+      editCount: type === "before"
+        ? (user.healthMetrics.beforeAfterPhotos.before[view]?.editCount || 0) + 1
+        : user.healthMetrics.beforeAfterPhotos.after[view]?.editCount || 0
+    };
+
+    await user.save();
+
+    return res.status(200).json({
+      message: `${type} ${view} photo uploaded successfully`,
+      beforeAfterPhotos: user.healthMetrics.beforeAfterPhotos,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// DELETE BEFORE/AFTER PHOTO
+const deleteBeforeAfterPhoto = async (req, res) => {
+  try {
+    const { type, view } = req.params; // type: "before" or "after", view: "front", "back", "side"
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.healthMetrics || !user.healthMetrics.beforeAfterPhotos) {
+      return res.status(404).json({ message: "No photos found" });
+    }
+
+    // Delete photo from Cloudinary if publicId exists
+    const photo = user.healthMetrics.beforeAfterPhotos[type][view];
+    if (photo && photo.publicId) {
+      try {
+        const cloudinary = require('cloudinary').v2;
+        cloudinary.config({
+          cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+          api_key: process.env.CLOUDINARY_API_KEY,
+          api_secret: process.env.CLOUDINARY_API_SECRET,
+        });
+        await cloudinary.uploader.destroy(photo.publicId);
+      } catch (cloudinaryError) {
+        console.error("Cloudinary delete error:", cloudinaryError);
+        // Continue with database deletion even if Cloudinary fails
+      }
+    }
+
+    // Remove photo from database
+    user.healthMetrics.beforeAfterPhotos[type][view] = {};
+
+    await user.save();
+
+    return res.status(200).json({
+      message: `${type} ${view} photo deleted successfully`,
+      beforeAfterPhotos: user.healthMetrics.beforeAfterPhotos,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
+// CALCULATE BMI
+const calculateBMI = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const weight = parseFloat(user.weight) || 0;
+    const height = parseFloat(user.height) || 0;
+
+    if (weight === 0 || height === 0) {
+      return res.status(400).json({ message: "Height and weight are required for BMI calculation" });
+    }
+
+    // BMI formula: weight (kg) / (height (m))^2
+    const heightInMeters = height / 100; // Convert cm to meters
+    const bmi = weight / (heightInMeters * heightInMeters);
+
+    let category = "";
+    if (bmi < 18.5) {
+      category = "Underweight";
+    } else if (bmi >= 18.5 && bmi < 25) {
+      category = "Normal";
+    } else if (bmi >= 25 && bmi < 30) {
+      category = "Overweight";
+    } else {
+      category = "Obese";
+    }
+
+    return res.status(200).json({
+      bmi: bmi.toFixed(1),
+      category,
+      weight,
+      height,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -1009,4 +1235,8 @@ module.exports = {
   getHealthMetrics,
   updateProfileDetails,
   saveMeasurementHistory,
+  saveBeforeAfterMeasurements,
+  uploadBeforeAfterPhoto,
+  deleteBeforeAfterPhoto,
+  calculateBMI,
 };
