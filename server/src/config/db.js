@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const connectDB = async () => {
   try {
+    // Enable query logging for performance profiling
+    mongoose.set('debug', (collectionName, method, query, doc, options) => {
+      console.log(`[DB QUERY] ${collectionName}.${method} executed`);
+    });
+
     // Set connection event handlers BEFORE connecting
     mongoose.connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
@@ -27,6 +32,7 @@ const connectDB = async () => {
       maxPoolSize: 10, // Connection pooling for concurrent requests
       minPoolSize: 2,
       maxIdleTimeMS: 30000,
+      family: 4, // Force IPv4 to avoid IPv6 DNS resolution issues
     });
 
     console.log("MongoDB connected with connection pool configured");
