@@ -22,17 +22,12 @@ const connectDB = async () => {
 
     // Wait for connection to be fully established with retry logic
     await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 5000, // Reduced to 5 seconds for fast fail
+      serverSelectionTimeoutMS: 30000,
+      connectTimeoutMS: 30000,
       socketTimeoutMS: 45000,
       ssl: true,
-      tlsAllowInvalidCertificates: false,
-      connectTimeoutMS: 5000, // Reduced to 5 seconds for fast fail
-      retryWrites: true,
-      w: 'majority',
-      maxPoolSize: 10, // Connection pooling for concurrent requests
-      minPoolSize: 2,
-      maxIdleTimeMS: 30000,
-      family: 4, // Force IPv4 to avoid IPv6 DNS resolution issues
+      tlsAllowInvalidCertificates: true,
+      maxPoolSize: 10,
     });
 
     console.log("MongoDB connected with connection pool configured");
