@@ -866,7 +866,8 @@ const getHealthMetrics = async (req, res) => {
 // UPDATE PROFILE DETAILS
 const updateProfileDetails = async (req, res) => {
   try {
-    const { fullName, mobileNumber, fitnessGoals } = req.body;
+    // Added height here to capture it from the frontend request body
+    const { fullName, mobileNumber, fitnessGoals, height } = req.body;
     const userId = req.user.id;
 
     const user = await User.findById(userId);
@@ -878,6 +879,7 @@ const updateProfileDetails = async (req, res) => {
     if (fullName) user.fullName = fullName;
     if (mobileNumber) user.mobileNumber = mobileNumber;
     if (fitnessGoals) user.fitnessGoals = fitnessGoals;
+    if (height) user.height = height; // Saves height to the database
 
     await user.save();
 
@@ -887,6 +889,7 @@ const updateProfileDetails = async (req, res) => {
         fullName: user.fullName,
         mobileNumber: user.mobileNumber,
         fitnessGoals: user.fitnessGoals,
+        height: user.height, // Sends the updated height back to frontend
       },
     });
   } catch (error) {
