@@ -347,12 +347,23 @@ const userSchema = new mongoose.Schema(
         }
       }
     },
-    // Fitness goals
+   // Fitness goals
     fitnessGoals: {
       type: String,
       default: "",
       trim: true,
-    }
+    },
+    // --- NEW WORKOUT ROUTINE TEMPLATE ARRAY ---
+    workoutRoutine: [
+      {
+        id: { type: String, required: true },
+        exercise: { type: String, default: "" },
+        sets: { type: Number, default: 0 },
+        reps: { type: Number, default: 0 },
+        weight: { type: String, default: "" },
+        isCompleted: { type: Boolean, default: false }
+      }
+    ]
   },
   { timestamps: true }
 );

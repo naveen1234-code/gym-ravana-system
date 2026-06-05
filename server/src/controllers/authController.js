@@ -1259,6 +1259,75 @@ const calculateBMI = async (req, res) => {
     });
   }
 };
+// SAVE WORKOUT ROUTINE (BULLETPROOF VERSION)
+const saveWorkoutRoutine = async (req, res) => {
+  try {
+    console.log("📥 RECEIVED ROUTINE SAVE REQ FROM USER:", req.user);
+    const { routine } = req.body;
+    
+    // Safety check for user ID formats (_id vs id)
+    const userId = req.user._id || req.user.id; 
+
+    if (!userId) {
+      console.log("❌ ERROR: No user ID found in request token.");
+      return res.status(401).json({ message: "Unauthorized: Missing user identity grid." });
+    }
+
+    if (!Array.isArray(routine)) {
+      console.log("❌ ERROR: Provided routine payload is not an array:", routine);
+      return res.status(400).json({ message: "Routine layout must be an array structured data." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log(`❌ ERROR: User with ID ${userId} not found in database.`);
+      return res.status(404).json({ message: "User data block not found" });
+    }
+
+    user.workoutRoutine = routine;
+    await user.save();
+
+    console.log("✅ SUCCESS: Routine successfully written to MongoDB for user:", user.email);
+    return res.status(200).json({
+      message: "Workout routine synced to cloud successfully ✅",
+      routine: user.workoutRoutine,
+    });
+  } catch (error) {
+    console.error("💥 CRITICAL BACKEND EXCEPTION DURING SAVE:", error);
+    return res.status(500).json({
+      message: "Server error saving routine tracking profile",
+      error: error.message,
+    });
+  }
+};
+
+// GET WORKOUT ROUTINE (BULLETPROOF VERSION)
+const getWorkoutRoutine = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    console.log(`📤 FETCHING ROUTINE SCHEMATICS FOR USER ID: ${userId}`);
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await User.findById(userId).select("workoutRoutine");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log(`✅ SUCCESS: Retrieved ${user.workoutRoutine?.length || 0} exercises from DB.`);
+    return res.status(200).json({
+      routine: user.workoutRoutine || [],
+    });
+  } catch (error) {
+    console.error("💥 CRITICAL BACKEND EXCEPTION DURING GET:", error);
+    return res.status(500).json({
+      message: "Server error pulling routine metrics profile",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   registerUser,
@@ -1289,4 +1358,6 @@ module.exports = {
   uploadBeforeAfterPhoto,
   deleteBeforeAfterPhoto,
   calculateBMI,
+  saveWorkoutRoutine, // <--- ADDED
+  getWorkoutRoutine,  // <--- ADDED
 };

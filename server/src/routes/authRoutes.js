@@ -30,6 +30,8 @@ const {
   uploadBeforeAfterPhoto,
   deleteBeforeAfterPhoto,
   calculateBMI,
+  saveWorkoutRoutine, // <--- ADDED
+  getWorkoutRoutine,  // <--- ADDED
 } = require("../controllers/authController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -60,6 +62,11 @@ router.post("/check-out", protect, checkOutMember);
 router.put("/profile-picture", protect, updateProfilePicture);
 router.post("/health-metrics", protect, logHealthMetrics);
 router.get("/health-metrics", protect, getHealthMetrics);
+
+// --- NEW ROUTINE TRACKING ENDPOINTS ---
+router.post("/routine", protect, saveWorkoutRoutine);
+router.get("/routine", protect, getWorkoutRoutine);
+
 router.put("/profile-details", protect, updateProfileDetails);
 router.post("/measurement-history", protect, saveMeasurementHistory);
 router.post("/before-after-measurements", protect, saveBeforeAfterMeasurements);
