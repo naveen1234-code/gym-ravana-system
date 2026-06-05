@@ -12,6 +12,15 @@ const GYM_QR = require("../config/gymQr");
 const DOOR_DEVICE_ID = "main-door-controller";
 const COMMAND_EXPIRE_MS = 30000;
 
+const getSriLankaDateKey = (date = new Date()) => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Colombo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+};
+
 // REGISTER
 const registerUser = async (req, res) => {
   try {
@@ -155,8 +164,19 @@ const getCurrentUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // AUTO EXPIRE LOGIC
-    if (user.remainingDays <= 0 && user.membershipStatus === "active") {
+// AUTO EXPIRE LOGIC (Strategy 1: Hybrid Calendar Authority)
+    const today = new Date();
+    let isExpired = false;
+
+    if (user.membershipEndDate) {
+      // Modern Calendar-Driven Check
+      isExpired = today > new Date(user.membershipEndDate);
+    } else {
+      // Legacy Fallback for older users
+      isExpired = user.remainingDays <= 0;
+    }
+
+    if (isExpired && user.membershipStatus === "active") {
       user.membershipStatus = "expired";
       await user.save();
     }
@@ -198,6 +218,16 @@ const updateMembership = async (req, res) => {
     user.remainingDays =
       remainingDays !== undefined ? remainingDays : user.remainingDays;
 
+      // Reset notification flags if membership dates/days are being topped up
+    if (membershipEndDate || totalDays) {
+      user.notificationFlags = {
+        warning7: false,
+        warning3: false,
+        warning1: false,
+        expired: false,
+      };
+    }
+    
     await user.save();
 
     return res.status(200).json({
@@ -270,21 +300,33 @@ const checkInMember = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.membershipStatus !== "active") {
+if (user.membershipStatus !== "active") {
       return res.status(400).json({ message: "Membership is not active" });
     }
 
-    if (user.remainingDays <= 0) {
-      user.membershipStatus = "expired";
-      await user.save();
-      return res.status(400).json({ message: "No remaining days left" });
+    // Strategy 1: Hybrid Door Access Validation
+    const today = new Date();
+    let balanceIsInvalid = false;
+
+    if (user.membershipEndDate) {
+      // Block entry if current date is past the end date calendar window
+      balanceIsInvalid = today > new Date(user.membershipEndDate);
+    } else {
+      // Block entry if legacy user runs out of active raw numerical days
+      balanceIsInvalid = (user.remainingDays || 0) <= 0;
     }
 
-    const today = new Date();
-    const todayString = today.toDateString();
+if (balanceIsInvalid) {
+      user.membershipStatus = "expired";
+      await user.save();
+      return res.status(400).json({ message: "Your membership period has expired. Please renew at the front desk." });
+    }
+
+    // We just use the 'today' variable we already created above!
+    const todayString = getSriLankaDateKey(today);
 
     if (user.lastCheckIn) {
-      const lastCheckInString = new Date(user.lastCheckIn).toDateString();
+      const lastCheckInString = getSriLankaDateKey(new Date(user.lastCheckIn));
 
       if (lastCheckInString === todayString) {
         return res.status(400).json({ message: "Already checked in today" });
@@ -641,6 +683,14 @@ const approveLegacyClaim = async (req, res) => {
     user.membershipEndDate = endDate;
     user.totalDays = monthsToAdd * 30;
     user.remainingDays = monthsToAdd * 30;
+
+    // Reset flags for the newly approved legacy user
+    user.notificationFlags = {
+      warning7: false,
+      warning3: false,
+      warning1: false,
+      expired: false,
+    };
 
     await user.save();
 

@@ -65,26 +65,48 @@ const processMembershipsForToday = async () => {
     for (const user of users) {
       ensureNotificationFlags(user);
 
-      const lastDeductedKey = user.lastDayDeductedAt
-        ? getSriLankaDateKey(user.lastDayDeductedAt)
-        : null;
+      // --- START HYBRID CALENDAR LOGIC ---
+      if (user.membershipEndDate) {
+        // STRATEGY 1: Calendar-Driven Authority
+        const todayDate = new Date();
+        const endDate = new Date(user.membershipEndDate);
+        
+        // Normalize both to midnight (Sri Lanka time context) for accurate day counting
+        todayDate.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
 
-      const alreadyDeductedToday = lastDeductedKey === todayKey;
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const daysDifference = Math.ceil((endDate.getTime() - todayDate.getTime()) / msPerDay);
 
-      // Deduct only if today was not already used by QR entry
-      if (!alreadyDeductedToday && user.remainingDays > 0) {
-        user.remainingDays = Math.max((user.remainingDays || 0) - 1, 0);
-        user.lastDayDeductedAt = now;
+        // Sync the remainingDays dial for the mobile app UI
+        user.remainingDays = Math.max(daysDifference, 0);
+
+        // If the calendar date is today or in the past, expire them
+        if (daysDifference <= 0) {
+          user.membershipStatus = "expired";
+          user.remainingDays = 0;
+        }
+
+      } else {
+        // STRATEGY 2: Legacy Fallback (for older members without an end date)
+        const lastDeductedKey = user.lastDayDeductedAt
+          ? getSriLankaDateKey(user.lastDayDeductedAt)
+          : null;
+
+        const alreadyDeductedToday = lastDeductedKey === todayKey;
+
+        // Deduct only if today was not already used by QR entry
+        if (!alreadyDeductedToday && user.remainingDays > 0) {
+          user.remainingDays = Math.max((user.remainingDays || 0) - 1, 0);
+          user.lastDayDeductedAt = now;
+        }
+
+        if (user.remainingDays <= 0) {
+          user.remainingDays = 0;
+          user.membershipStatus = "expired";
+        }
       }
-
-      if (user.remainingDays < 0) {
-        user.remainingDays = 0;
-      }
-
-      // Explicitly set status to expired when days reach 0
-      if (user.remainingDays === 0) {
-        user.membershipStatus = "expired";
-      }
+      // --- END HYBRID CALENDAR LOGIC ---
 
       const daysLeft = user.remainingDays;
 
@@ -314,11 +336,17 @@ const processMembershipsForToday = async () => {
 };
 
 const runMembershipCron = () => {
-  // Monday to Friday - 11:30 PM Sri Lanka local intent
-  cron.schedule("30 23 * * 1-5", processMembershipsForToday);
+  // Monday to Friday - 11:30 PM Sri Lanka local time
+  cron.schedule("30 23 * * 1-5", processMembershipsForToday, {
+    scheduled: true,
+    timezone: "Asia/Colombo"
+  });
 
-  // Saturday - 10:30 PM Sri Lanka local intent
-  cron.schedule("30 22 * * 6", processMembershipsForToday);
+  // Saturday - 10:30 PM Sri Lanka local time
+  cron.schedule("30 22 * * 6", processMembershipsForToday, {
+    scheduled: true,
+    timezone: "Asia/Colombo"
+  });
 };
 
 module.exports = runMembershipCron;
