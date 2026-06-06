@@ -63,25 +63,28 @@ const registerUser = async (req, res) => {
     if (isLegacyMember && legacyDetails) {
       try {
         const claimId = `${user._id}-${Date.now()}`;
-        console.log("CREATING LEGACY CLAIM WITH:", {
-          userId: user._id,
-          claimId,
-          legacyPlan: legacyDetails.previousMembershipPlanType,
-          claimedPhoneNumber: legacyDetails.claimedPhoneNumber,
-          startMonth: legacyDetails.startMonth,
-          startYear: legacyDetails.startYear,
-        });
+       // ✅ UPDATED CODE
+console.log("CREATING LEGACY CLAIM WITH:", {
+  userId: user._id,
+  claimId,
+  legacyPlan: legacyDetails.previousMembershipPlanType,
+  claimedPhoneNumber: legacyDetails.claimedPhoneNumber,
+  startDay: legacyDetails.startDay, // Added tracking log
+  startMonth: legacyDetails.startMonth,
+  startYear: legacyDetails.startYear,
+});
 
-        const legacyClaim = await LegacyClaim.create({
-          userId: user._id,
-          claimId,
-          legacyPlan: legacyDetails.previousMembershipPlanType,
-          claimedPhoneNumber: legacyDetails.claimedPhoneNumber,
-          startMonth: legacyDetails.startMonth,
-          startYear: legacyDetails.startYear,
-          status: "pending",
-          claimedAt: new Date(),
-        });
+const legacyClaim = await LegacyClaim.create({
+  userId: user._id,
+  claimId,
+  legacyPlan: legacyDetails.previousMembershipPlanType,
+  claimedPhoneNumber: legacyDetails.claimedPhoneNumber,
+  startDay: legacyDetails.startDay, // Added database persistence
+  startMonth: legacyDetails.startMonth,
+  startYear: legacyDetails.startYear,
+  status: "pending",
+  claimedAt: new Date(),
+});
 
         console.log("LEGACY CLAIM CREATED SUCCESSFULLY:", legacyClaim);
       } catch (legacyError) {
@@ -271,7 +274,8 @@ const makeAdmin = async (req, res) => {
 // GET ALL USERS
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    // Added .sort() to keep records organized by newest registration first
+    const users = await User.find().select("-password").sort({ createdAt: -1 });
 
     return res.status(200).json(users);
   } catch (error) {
@@ -750,7 +754,7 @@ const rejectLegacyClaim = async (req, res) => {
 const updateLegacyClaim = async (req, res) => {
   try {
     const { id } = req.params;
-    const { claimedPhoneNumber, startMonth, startYear, previousMembershipPlanType } = req.body;
+const { claimedPhoneNumber, startDay, startMonth, startYear, previousMembershipPlanType } = req.body; // Added startDay here
 
     const claim = await LegacyClaim.findById(id);
 
@@ -759,6 +763,7 @@ const updateLegacyClaim = async (req, res) => {
     }
 
     if (claimedPhoneNumber !== undefined) claim.claimedPhoneNumber = claimedPhoneNumber;
+    if (startDay !== undefined) claim.startDay = startDay; // Added day persistence
     if (startMonth !== undefined) claim.startMonth = startMonth;
     if (startYear !== undefined) claim.startYear = startYear;
     if (previousMembershipPlanType !== undefined) claim.legacyPlan = previousMembershipPlanType;

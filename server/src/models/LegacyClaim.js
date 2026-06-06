@@ -24,6 +24,11 @@ const legacyClaimSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    startDay: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     startMonth: {
       type: String,
       default: "",

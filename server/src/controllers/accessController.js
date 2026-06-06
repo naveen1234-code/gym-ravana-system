@@ -109,7 +109,7 @@ const updateDeviceStatusFromBody = async (reqBody = {}, reqIp = "") => {
     },
     {
       upsert: true,
-      new: true,
+      returnDocument: 'after',
     }
   );
 };
@@ -712,7 +712,7 @@ const devicePollCommand = async (req, res) => {
         },
       },
       {
-        new: true,
+        returnDocument: 'after',
         sort: { createdAt: 1 },
       }
     );
